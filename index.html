@@ -37,6 +37,8 @@
     .bal-inp:focus{outline:1px solid var(--accent);}
     .bal-inp.sav:focus{outline:1px solid var(--accent2);}
     .bal-hint{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--muted);margin-top:.18rem;}
+    .calc-row{display:grid;grid-template-columns:1fr 80px 1fr 24px;gap:.35rem;align-items:center;margin-bottom:.4rem;}
+    .calc-row-eq{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--accent2);text-align:right;white-space:nowrap;}
     .sind{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-left:.3rem;}
     .sind.ok{color:var(--accent2);}
 
@@ -240,6 +242,7 @@
     <div class="bal-irow">
       <input class="bal-inp" id="iCash" type="number" step="0.01" placeholder="0.00"/>
       <button class="btn btn-a" id="btnUpdateCash" onclick="setBal('cash')">Update</button>
+      <button class="btn btn-g" id="btnCalcCash" onclick="showBalCalc('cash')" style="margin-left:.3rem" title="Calculate from multiple accounts">∑</button>
       <button class="btn btn-g" id="btnAddFunds" onclick="showAddFunds('cash')" style="margin-left:.3rem">+ Add Funds</button>
       <span class="sind" id="sind"></span>
     </div>
@@ -251,6 +254,7 @@
     <div class="bal-irow">
       <input class="bal-inp sav" id="iSav" type="number" step="0.01" placeholder="0.00"/>
       <button class="btn btn-b" id="btnUpdateSav" onclick="setBal('sav')">Update</button>
+      <button class="btn btn-g" id="btnCalcSav" onclick="showBalCalc('sav')" style="margin-left:.3rem" title="Calculate from multiple accounts">∑</button>
       <button class="btn btn-g" id="btnAddFundsSav" onclick="showAddFunds('sav')" style="margin-left:.3rem">+ Add Funds</button>
     </div>
     <div class="bal-hint" id="balHintSav">Auto-calculated · Update if reality differs</div>
@@ -428,7 +432,7 @@
     <h3 id="addFundsTitle">Add Funds to Balance</h3>
     <div class="fr">
       <label id="addFundsAmtLabel">Amount</label>
-      <input class="fi" id="addFundsAmt" type="number" step="0.01" placeholder="500"/>
+      <input class="fi" id="addFundsAmt" type="number" step="0.01" placeholder="+500 or −200"/>
     </div>
     <div class="fr">
       <label id="addFundsCurLabel">Currency</label>
@@ -451,6 +455,30 @@
     <div class="modal-btns">
       <button class="btn btn-b" onclick="confirmAddFunds()" id="addFundsBtn">Convert &amp; Add</button>
       <button class="btn btn-g" onclick="document.getElementById('addFundsOverlay').style.display='none'">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- BALANCE CALCULATOR MODAL -->
+<div class="modal-overlay" id="balCalcOverlay" style="display:none">
+  <div class="modal" style="width:420px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.8rem">
+      <h3 id="balCalcTitle" style="margin:0">Calculate Balance</h3>
+      <button class="xbtn" onclick="document.getElementById('balCalcOverlay').style.display='none'">✕</button>
+    </div>
+    <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:.8rem" id="balCalcHint">
+      Enter each account or cash pile separately. They'll be summed and converted to your base currency.
+    </div>
+    <div id="balCalcRows"></div>
+    <button class="btn btn-g" style="width:100%;margin:.5rem 0;font-size:.7rem" onclick="balCalcAddRow()">+ Add account</button>
+    <div style="border-top:1px solid var(--border);margin:.6rem 0"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0">
+      <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted)" id="balCalcTotalLabel">Total</div>
+      <div style="font-family:'DM Serif Display',serif;font-size:1.4rem;letter-spacing:-.03em" id="balCalcTotal">—</div>
+    </div>
+    <div class="modal-btns" style="margin-top:.6rem">
+      <button class="btn btn-a" id="balCalcSetBtn" onclick="balCalcConfirm()">Set as Balance</button>
+      <button class="btn btn-g" onclick="document.getElementById('balCalcOverlay').style.display='none'" id="balCalcCancelBtn">Cancel</button>
     </div>
   </div>
 </div>
@@ -503,8 +531,8 @@ let S = {
   fxCache: null,       // {base, rates, ts}
   recurringExceptions: {}, // {recurringId: [isoDate, ...]} — skipped instances
   bufferModeSince: null,   // isoDate when current bufferMode was last set (for 3-month badges)
-  _startingCash: 0,     // the base the user last set manually
-  _startingDate: null,  // iso date when they last set it
+  _startingCash: 0,
+  _startingDate: null,
 };
 
 // ══════════════════════════════
@@ -681,7 +709,7 @@ function genEvents(extraEvents=[]){
       const amt=rec.kind==='saving'?-Math.abs(rec.amount):rec.amount;
       const excKey=isoOf(date);
       if((S.recurringExceptions[rec.id]||[]).includes(excKey))return;
-      evs.push({id:`${rec.id}_${year}_${month}`,date,name:rec.name,amount:amt,kind:rec.kind,type:'recurring',recurringId:rec.id,instanceDate:excKey,monthKey:`${year}-${month}`});
+      evs.push({id:`${rec.id}_${year}_${month}`,date,name:rec.name,amount:amt,kind:rec.kind,type:'recurring',recurringId:rec.id,instanceDate:excKey,monthKey:`${year}-${month}`,currency:rec.currency||S.currency,amountOriginal:rec.amountOriginal,amountOriginal_sign:rec.amountOriginal_sign});
     });
   });
   const winStart=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);
@@ -690,7 +718,7 @@ function genEvents(extraEvents=[]){
     const date=parseDt(ev.date);
     if(date<winStart||date>winEnd)return;
     const amt=ev.kind==='saving'?-Math.abs(ev.amount):ev.amount;
-    evs.push({id:ev.id,date,name:ev.name,amount:amt,kind:ev.kind,type:'oneTime',monthKey:`${date.getFullYear()}-${date.getMonth()}`});
+    evs.push({id:ev.id,date,name:ev.name,amount:amt,kind:ev.kind,type:'oneTime',monthKey:`${date.getFullYear()}-${date.getMonth()}`,currency:ev.currency||S.currency,amountOriginal:ev.amountOriginal,amountOriginal_sign:ev.amountOriginal_sign});
   });
   extraEvents.forEach((ex,i)=>{
     const date=parseDt(ex.date);
@@ -999,12 +1027,17 @@ function render(){
       const liqNow=cash+sav;
       if(isExp||isSav){
         rb=rollingBuffer(ev.date,evs);
-        ratio=rb>0?liqNow/rb:(liqNow>=0?1:0);
+        // Buffer ratio: how well liq covers the buffer floor
+        const liqRatio=rb>0?liqNow/rb:(liqNow>=0?1:0);
+        // Cash penalty: if cash < 0, we're dipping into savings — cap ratio at 0.4
+        // regardless of how healthy savings look. Motivates keeping cash positive.
+        const cashPenalty=cash<0?Math.min(0.4, Math.max(0, 0.4*(1+cash/Math.max(1,rb)))):0;
+        ratio=cash<0?cashPenalty:liqRatio;
         hc=hColor(ratio);
         ratioTip=`${Math.round(ratio*100)}%`;
       }
-      // Critical: ratio < 0.5 or liq < 0 → show ⚠ instead of dot
-      const isCritical=(isExp||isSav)&&!isPast&&(ratio<0.5||liqNow<0);
+      // Critical: ratio < 0.5 OR cash < 0 → show ⚠ instead of dot
+      const isCritical=(isExp||isSav)&&!isPast&&(ratio<0.5||cash<0);
 
       // Nudge only for mode A (small cushion floor) — B/C buffers are large windows,
       // nudge to reduce a single expense by "CHF 1076" makes no sense
@@ -1018,7 +1051,7 @@ function render(){
             ${isTod?`<div class="todaybadge">${t('today')}</div>`:''}
           </div>
           ${isCritical
-            ? `<div class="hdot-warn" title="${ratioTip} — buffer violated" style="color:${liqNow<0?'var(--red)':'var(--orange)'}">⚠</div>`
+            ? `<div class="hdot-warn" title="${ratioTip} — buffer violated" style="color:${cash<0?'var(--red)':'var(--orange)'}">⚠</div>`
             : `<div class="hdot" style="background:${hc};box-shadow:${hc!=='transparent'?`0 0 4px ${hc}44`:'none'}" title="${ratioTip?`Buffer: ${ratioTip}`:''}"></div>`
           }
           <div style="display:flex;align-items:center;min-width:0">
@@ -1027,8 +1060,14 @@ function render(){
             ${isSav?'<span class="svbadge">SAV</span>':''}
           </div>
           <div class="${amtCls}" style="text-align:right">
-            <input class="amt-inp" type="number" step="0.01" value="${ev.amount}"
-              onchange="updAmt('${ev.id}','${ev.type}','${ev.recurringId||''}',parseFloat(this.value),'${ev.instanceDate||''}')"/>
+            ${ev.currency&&ev.currency!==S.currency&&ev.amountOriginal!=null
+              ? `<div style="font-family:'DM Mono',monospace;font-size:.78rem;line-height:1.15">
+                  <span>${ev.amountOriginal_sign<0?'−':'+'}${ev.amountOriginal} ${ev.currency}</span><br>
+                  <span style="font-size:.62rem;color:var(--muted)">(${fmtM(ev.amount)})</span>
+                </div>`
+              : `<input class="amt-inp" type="number" step="0.01" value="${ev.amount}"
+                  onchange="updAmt('${ev.id}','${ev.type}','${ev.recurringId||''}',parseFloat(this.value),'${ev.instanceDate||''}')"/>`
+            }
           </div>
           <div class="txbal ${balCls}">${fmtM(cash)}</div>
           <div class="txact"><button class="xbtn" onclick="delEv('${ev.id}','${ev.type}','${ev.recurringId||''}','${ev.instanceDate||''}')">✕</button></div>
@@ -1725,14 +1764,16 @@ function previewAddFunds(){
   const amt=parseFloat(document.getElementById('addFundsAmt').value);
   const cur=document.getElementById('addFundsCur').value;
   const el=document.getElementById('addFundsPreview');
-  if(isNaN(amt)||amt<=0){el.style.display='none';return;}
-  const converted=convertToBase(amt,cur);
+  if(isNaN(amt)||amt===0){el.style.display='none';return;}
+  const converted=convertToBase(Math.abs(amt),cur)*(amt<0?-1:1);
   const rate=Math.round(getRate(cur)*1000)/1000;
   el.style.display='block';
+  el.style.color=amt<0?'var(--red)':'var(--accent2)';
+  const sign=amt<0?'−':'+';
   if(cur===S.currency){
-    el.textContent=`${fmtM(amt)} → ${fmtM(converted)}`;
+    el.textContent=`${sign}${fmtM(Math.abs(converted))}`;
   } else {
-    el.textContent=`${amt} ${cur} → ${fmtM(converted)} (${t('ratesUpdated').toLowerCase()}: 1 ${cur} = ${rate} ${S.currency})`;
+    el.textContent=`${amt} ${cur} → ${sign}${fmtM(Math.abs(converted))} (1 ${cur} = ${rate} ${S.currency})`;
   }
 }
 
@@ -1740,27 +1781,121 @@ function confirmAddFunds(){
   const amt=parseFloat(document.getElementById('addFundsAmt').value);
   const cur=document.getElementById('addFundsCur').value;
   const dest=document.getElementById('addFundsDest').value;
-  if(isNaN(amt)||amt<=0){alert(t('fillAll'));return;}
-  const converted=convertToBase(amt,cur);
+  if(isNaN(amt)||amt===0){alert(t('fillAll'));return;}
+  const converted=convertToBase(Math.abs(amt),cur)*(amt<0?-1:1);
   const rate=Math.round(getRate(cur)*1000)/1000;
+  const destLabel=dest==='cash'?t('addFundsCash'):t('addFundsSav');
+  const sign=amt<0?'−':'+';
   const confirmMsg=cur===S.currency
-    ? `${fmtM(amt)} → ${dest==='cash'?t('addFundsCash'):t('addFundsSav')}. ${t('added')}?`
-    : t('addFundsConfirm', amt, cur, fmtM(converted), S.currency, rate);
+    ? `${sign}${fmtM(Math.abs(converted))} → ${destLabel}. OK?`
+    : `${amt} ${cur} → ${sign}${fmtM(Math.abs(converted))} → ${destLabel}. OK?`;
   if(!confirm(confirmMsg))return;
   if(dest==='cash'){
     S._startingCash=(S._startingCash||0)+converted;
     S.cashBalance=S._startingCash;
+    S._startingDate=isoOf(TODAY);
   } else {
-    S.savingsBalance=(S.savingsBalance||0)+converted;
+    S.savingsBalance=Math.max(0,(S.savingsBalance||0)+converted);
   }
   document.getElementById('addFundsOverlay').style.display='none';
-  persist();render();
-  showToast(`${t('added')}: +${fmtM(converted)}`);
+  persist();render();checkBadges();
+  showToast(`${sign}${fmtM(Math.abs(converted))}`);
 }
 
 // ══════════════════════════════
 // ACTIONS
 // ══════════════════════════════
+// ══════════════════════════════
+// BALANCE CALCULATOR
+// ══════════════════════════════
+let _balCalcDest='cash';
+let _balCalcRowCount=0;
+
+function showBalCalc(dest){
+  _balCalcDest=dest;
+  _balCalcRowCount=0;
+  document.getElementById('balCalcOverlay').style.display='flex';
+  document.getElementById('balCalcRows').innerHTML='';
+  const isSav=dest==='sav';
+  document.getElementById('balCalcTitle').textContent=isSav?t('calcSavTitle')||'Calculate Savings Balance':t('calcCashTitle')||'Calculate Cash Balance';
+  document.getElementById('balCalcSetBtn').textContent=isSav?t('calcSetSav')||'Set as Savings Balance':t('calcSetCash')||'Set as Cash Balance';
+  balCalcAddRow();  // start with one row
+  balCalcUpdate();
+}
+
+function balCalcAddRow(){
+  const idx=_balCalcRowCount++;
+  const el=document.createElement('div');
+  el.className='calc-row';
+  el.id='calcRow'+idx;
+  el.innerHTML=`
+    <input class="wiz-inp" id="calcAmt${idx}" type="number" step="0.01" placeholder="0.00"
+      oninput="balCalcUpdate()" style="font-size:.82rem"/>
+    <select class="wiz-inp" id="calcCur${idx}" onchange="balCalcUpdate()" style="font-size:.72rem">
+      ${['EUR','CHF','USD','GBP','PLN'].map(c=>`<option value="${c}"${c===S.currency?' selected':''}>${c}</option>`).join('')}
+    </select>
+    <div class="calc-row-eq" id="calcEq${idx}">= —</div>
+    ${idx>0?`<button class="xbtn" onclick="balCalcRemoveRow(${idx})">✕</button>`:'<div></div>'}
+  `;
+  document.getElementById('balCalcRows').appendChild(el);
+  document.getElementById('calcAmt'+idx).focus();
+}
+
+function balCalcRemoveRow(idx){
+  const el=document.getElementById('calcRow'+idx);
+  if(el)el.remove();
+  balCalcUpdate();
+}
+
+function balCalcUpdate(){
+  let total=0;
+  const rows=document.querySelectorAll('.calc-row');
+  rows.forEach(row=>{
+    const idx=row.id.replace('calcRow','');
+    const amtEl=document.getElementById('calcAmt'+idx);
+    const curEl=document.getElementById('calcCur'+idx);
+    const eqEl=document.getElementById('calcEq'+idx);
+    if(!amtEl||!curEl||!eqEl)return;
+    const amt=parseFloat(amtEl.value);
+    const cur=curEl.value;
+    if(isNaN(amt)||amt===0){eqEl.textContent='= —';eqEl.style.color='var(--muted)';return;}
+    const inBase=cur===S.currency?amt:convertToBase(amt,cur);
+    total+=inBase;
+    if(cur===S.currency){
+      eqEl.textContent=`= ${fmtM(inBase)}`;
+    } else {
+      eqEl.textContent=`= ${fmtM(inBase)}`;
+    }
+    eqEl.style.color='var(--accent2)';
+  });
+  const totalEl=document.getElementById('balCalcTotal');
+  if(totalEl)totalEl.textContent=total===0?'—':fmtM(Math.round(total*100)/100);
+}
+
+function balCalcConfirm(){
+  let total=0;
+  const rows=document.querySelectorAll('.calc-row');
+  rows.forEach(row=>{
+    const idx=row.id.replace('calcRow','');
+    const amt=parseFloat(document.getElementById('calcAmt'+idx)?.value);
+    const cur=document.getElementById('calcCur'+idx)?.value;
+    if(!isNaN(amt)&&amt!==0&&cur){
+      total+=cur===S.currency?amt:convertToBase(amt,cur);
+    }
+  });
+  total=Math.round(total*100)/100;
+  if(total===0){alert(t('fillAll'));return;}
+  if(!confirm(`${t('newBalance')||'New balance'}: ${fmtM(total)}. OK?`))return;
+  if(_balCalcDest==='cash'){
+    S._startingCash=total;S.cashBalance=total;S._startingDate=isoOf(TODAY);
+  } else {
+    S.savingsBalance=total;
+  }
+  document.getElementById('balCalcOverlay').style.display='none';
+  persist();render();checkBadges();
+  showToast(`${t('update')||'Updated'}: ${fmtM(total)}`);
+}
+
 function setBal(w){
   const v=parseFloat(document.getElementById(w==='cash'?'iCash':'iSav').value);
   if(isNaN(v))return;
