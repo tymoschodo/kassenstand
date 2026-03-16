@@ -51,8 +51,8 @@
     .xbtn{background:transparent;color:var(--red);border:1px solid #3a1a1a;font-size:.62rem;padding:.13rem .38rem;border-radius:3px;cursor:pointer;font-family:'Instrument Sans',sans-serif;}.xbtn:hover{background:#3a1a1a;}
 
     /* TABS */
-    .tab-bar{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);overflow-x:auto;}
-    .tab{padding:.55rem .8rem;font-size:.68rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;white-space:nowrap;}
+    .tab-bar{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);overflow-x:visible;}
+    .tab{padding:.5rem 0;font-size:.58rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;white-space:nowrap;flex:1;text-align:center;}
     .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
     .tab:hover:not(.active){color:var(--text);}
 
@@ -111,6 +111,15 @@
     .fhint{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-bottom:.65rem;line-height:1.5;}
     .cbrow{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;}
     .cbrow input{accent-color:var(--accent);}
+    /* buffer mode options */
+    .buf-opts{display:flex;flex-direction:column;gap:.4rem;margin-bottom:.6rem;}
+    .buf-opt{display:flex;align-items:flex-start;gap:.6rem;padding:.7rem .75rem;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:var(--surface2);transition:all .15s;user-select:none;}
+    .buf-opt:hover{border-color:#444;background:#222;}
+    .buf-opt.selected{border-color:var(--accent);background:#111e05;}
+    .buf-opt input[type=radio]{accent-color:var(--accent);flex-shrink:0;margin-top:.2rem;}
+    .buf-opt-text{flex:1;font-family:'Instrument Sans',sans-serif;font-size:.82rem;line-height:1.4;color:var(--text);}
+    .buf-opt-text em{color:var(--muted);font-style:normal;}
+    .buf-opt-sub{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:.2rem;line-height:1.45;}
     /* recurring list items */
     .ritem{display:flex;align-items:center;gap:.5rem;padding:.55rem .65rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;margin-bottom:.45rem;}
     .rname{flex:1;font-size:.8rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -255,12 +264,12 @@
 
   <div class="sidebar">
     <div class="tab-bar">
-      <div class="tab active" onclick="tab('events')">Events</div>
-      <div class="tab" onclick="tab('savings')">Savings</div>
-      <div class="tab" onclick="tab('goals')">Goals</div>
-      <div class="tab" onclick="tab('whatif')">What-If</div>
-      <div class="tab" onclick="tab('progress')">🏆</div>
-      <div class="tab" onclick="tab('settings')">⚙</div>
+      <div class="tab active" id="tabBtnEvents" onclick="tab('events')">Events</div>
+      <div class="tab" id="tabBtnSavings" onclick="tab('savings')">Savings</div>
+      <div class="tab" id="tabBtnGoals" onclick="tab('goals')">Goals</div>
+      <div class="tab" id="tabBtnWhatif" onclick="tab('whatif')">What-If</div>
+      <div class="tab" id="tabBtnProgress" onclick="tab('progress')">🏆</div>
+      <div class="tab" id="tabBtnSettings" onclick="tab('settings')">⚙ Settings</div>
     </div>
 
     <!-- EVENTS -->
@@ -1714,6 +1723,12 @@ function applyI18n(){
   const bufIds={bufALabel:'bufA',bufASub:'bufASub',bufBLabel:'bufB',bufBSub:'bufBSub',bufCLabel:'bufC',bufCSub:'bufCSub'};
   Object.entries(bufIds).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.innerHTML=t(key);});
   // Tab labels
+  // Update tab button labels
+  const tabLabelMap={'tabBtnEvents':'tabEvents','tabBtnSavings':'tabSavings','tabBtnGoals':'tabGoals','tabBtnWhatif':'tabWhatif','tabBtnProgress':'tabProgress'};
+  Object.entries(tabLabelMap).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.textContent=t(key);});
+  // Settings tab always shows icon + text
+  const stEl=document.getElementById('tabBtnSettings');
+  if(stEl)stEl.textContent='⚙ '+(t('tabSettings')||'Settings');
   const tabKeys=['tabEvents','tabSavings','tabGoals','tabWhatif','tabProgress','tabSettings'];
   document.querySelectorAll('.tab').forEach((el,i)=>{if(tabKeys[i])el.textContent=t(tabKeys[i]);});
   // Help button
