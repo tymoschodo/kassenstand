@@ -14,12 +14,12 @@
     body{background:var(--bg);color:var(--text);font-family:'Instrument Sans',sans-serif;display:flex;flex-direction:column;height:100vh;}
 
     /* HEADER */
-    header{padding:.7rem 1.6rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1.2rem;flex-shrink:0;-webkit-app-region:drag;background:var(--surface);flex-wrap:wrap;}
+    header{padding:.85rem 1.6rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1.4rem;flex-shrink:0;-webkit-app-region:drag;background:var(--surface);flex-wrap:wrap;}
     .logo{font-family:'DM Serif Display',serif;font-size:1.5rem;letter-spacing:-.03em;-webkit-app-region:no-drag;flex-shrink:0;}
     .logo span{color:var(--accent);font-style:italic;}
     .hstats{display:flex;gap:1.3rem;-webkit-app-region:no-drag;flex-wrap:wrap;align-items:center;}
     .hstat{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);text-align:center;}
-    .hstat strong{display:block;font-size:.85rem;color:var(--text);margin-bottom:.06rem;}
+    .hstat strong{display:block;font-size:.92rem;color:var(--text);margin-bottom:.08rem;}
     .hstat strong.g{color:var(--accent);}.hstat strong.b{color:var(--accent2);}
     .hdiv{width:1px;height:24px;background:var(--border);}
     .today-lbl{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-left:auto;-webkit-app-region:no-drag;display:flex;align-items:center;gap:.7rem;}
@@ -27,10 +27,10 @@
     .help-btn:hover{color:var(--text);border-color:#555;}
 
     /* BALANCE BAR */
-    .bal-bar{padding:.6rem 1.6rem;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:2rem;flex-shrink:0;align-items:flex-end;flex-wrap:wrap;}
+    .bal-bar{padding:.85rem 1.6rem;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:2.5rem;flex-shrink:0;align-items:flex-end;flex-wrap:wrap;}
     .bal-block{display:flex;flex-direction:column;}
     .bal-lbl{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.1rem;}
-    .bal-amt{font-family:'DM Serif Display',serif;font-size:1.8rem;letter-spacing:-.04em;line-height:1;}
+    .bal-amt{font-family:'DM Serif Display',serif;font-size:2rem;letter-spacing:-.04em;line-height:1;}
     .bal-amt.ca{color:var(--accent);}.bal-amt.sa{color:var(--accent2);}
     .bal-irow{display:flex;gap:.28rem;margin-top:.26rem;align-items:center;}
     .bal-inp{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.8rem;padding:.26rem .48rem;border-radius:4px;width:115px;}
@@ -52,7 +52,7 @@
 
     /* TABS */
     .tab-bar{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface);overflow-x:auto;}
-    .tab{padding:.45rem .75rem;font-size:.64rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;white-space:nowrap;}
+    .tab{padding:.55rem .8rem;font-size:.68rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .12s;white-space:nowrap;}
     .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
     .tab:hover:not(.active){color:var(--text);}
 
@@ -62,7 +62,7 @@
 
     /* MONTH BLOCKS */
     .month-block{border-bottom:1px solid var(--border);}
-    .month-hdr{padding:.65rem 1.6rem;background:var(--surface);font-family:'DM Serif Display',serif;font-size:1.15rem;letter-spacing:-.02em;display:flex;align-items:center;gap:.65rem;position:sticky;top:0;z-index:2;border-bottom:1px solid var(--border);}
+    .month-hdr{padding:.8rem 1.6rem;background:var(--surface);font-family:'DM Serif Display',serif;font-size:1.2rem;letter-spacing:-.02em;display:flex;align-items:center;gap:.65rem;position:sticky;top:0;z-index:2;border-bottom:1px solid var(--border);}
     .mdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
     .month-right{margin-left:auto;display:flex;align-items:center;gap:1.1rem;}
     .pct-wrap{display:flex;align-items:center;gap:.35rem;font-family:'DM Mono',monospace;font-size:.65rem;}
@@ -71,7 +71,7 @@
     .mend{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);}
 
     /* TX ROW */
-    .txr{display:grid;grid-template-columns:78px 10px 1fr 105px 112px 56px;align-items:center;padding:.48rem 1.6rem;border-bottom:1px solid #181818;transition:background .1s;gap:.55rem;}
+    .txr{display:grid;grid-template-columns:78px 10px 1fr 115px 120px 56px;align-items:center;padding:.6rem 1.6rem;border-bottom:1px solid #181818;transition:background .1s;gap:.6rem;}
     .txr:hover{background:#111;}.txr:hover .txact{opacity:1;}
     .txr.past{opacity:.33;}
     .txr.tod{border-left:2px solid var(--accent);background:#10160a;}
@@ -83,7 +83,7 @@
     .hdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s;}
     .hdot-warn{width:14px;height:14px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.75rem;line-height:1;animation:pulse-warn 1.8s ease-in-out infinite;}
     @keyframes pulse-warn{0%,100%{opacity:1;}50%{opacity:.55;}}
-    .txname-inp{background:transparent;border:none;color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:.8rem;width:100%;cursor:text;}
+    .txname-inp{background:transparent;border:none;color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:.85rem;width:100%;cursor:text;}
     .txname-inp:focus{outline:1px solid var(--border);border-radius:2px;background:var(--surface2);padding:.07rem .26rem;}
     .svbadge{font-size:.52rem;color:var(--accent2);background:#0a1e1a;padding:.06rem .25rem;border-radius:2px;margin-left:.28rem;flex-shrink:0;}
     .amt-inp{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.72rem;padding:.13rem .32rem;border-radius:3px;width:100%;text-align:right;}
@@ -96,43 +96,32 @@
     .nudge b{color:var(--text);}
 
     /* SIDEBAR */
-    .sidebar{width:300px;border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;}
-    .sb-body{padding:1rem 1.1rem;display:none;}
+    .sidebar{width:320px;border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;}
+    .sb-body{padding:1.4rem 1.3rem;display:none;}
     .sb-body.active{display:block;}
-    .sb-h3{font-family:'DM Serif Display',serif;font-size:.98rem;margin-bottom:.7rem;}
-    .sb-h4{font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-family:'DM Mono',monospace;margin:.8rem 0 .38rem;}
-    .sb-h4:first-of-type{margin-top:0;}
-    .fr{margin-bottom:.44rem;}
-    .fr label{display:block;font-size:.58rem;color:var(--muted);margin-bottom:.13rem;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;}
-    .fi{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:.78rem;padding:.3rem .48rem;border-radius:4px;}
-    .fi:focus{outline:1px solid var(--accent);}
-    .fi.sav:focus{outline:1px solid var(--accent2);}
-    .fhint{font-size:.58rem;color:var(--muted);margin-top:.13rem;font-family:'DM Mono',monospace;}
-    .firow{display:flex;gap:.35rem;}.firow .fr{flex:1;margin-bottom:0;}
-    .cbrow{display:flex;align-items:center;gap:.45rem;font-size:.78rem;margin:.35rem 0;}
-    .cbrow input{accent-color:var(--accent2);}
-
-    /* BUFFER MODE */
-    .buf-opts{display:flex;flex-direction:column;gap:.3rem;margin:.35rem 0;}
-    .buf-opt{display:flex;align-items:flex-start;gap:.45rem;padding:.42rem .5rem;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:all .12s;}
-    .buf-opt:hover{background:var(--surface2);}
-    .buf-opt.selected{border-color:var(--accent);background:#151f05;}
-    .buf-opt input{accent-color:var(--accent);margin-top:.12rem;flex-shrink:0;}
-    .buf-opt-text{font-size:.75rem;line-height:1.4;}
-    .buf-opt-sub{font-size:.62rem;color:var(--muted);font-family:'DM Mono',monospace;}
-
-    /* REC LIST */
-    .ritem{display:flex;align-items:center;gap:.3rem;padding:.34rem 0;border-bottom:1px solid #1a1a1a;font-size:.74rem;}
-    .rday{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);width:18px;flex-shrink:0;text-align:right;}
-    .rname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    .ramt{font-family:'DM Mono',monospace;font-size:.65rem;flex-shrink:0;}
-
-    /* GOAL CARDS */
-    .gcard{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.68rem;margin-bottom:.6rem;}
-    .gname{font-weight:600;font-size:.82rem;margin-bottom:.28rem;}
-    .gbar-bg{width:100%;height:5px;background:#222;border-radius:3px;overflow:hidden;margin:.25rem 0;}
+    .sb-h3{font-family:'DM Serif Display',serif;font-size:1.05rem;margin-bottom:.9rem;}
+    .sb-h4{font-size:.58rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-family:'DM Mono',monospace;margin:1.1rem 0 .5rem;border-top:1px solid var(--border);padding-top:.9rem;}
+    .sb-h4:first-child{margin-top:0;border-top:none;padding-top:0;}
+    .fr{margin-bottom:.65rem;}
+    .fr label{display:block;font-size:.62rem;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.28rem;}
+    .fi{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:.88rem;padding:.42rem .6rem;border-radius:5px;}
+    .fi:focus{outline:1px solid var(--accent);}.fi.sav:focus{outline:1px solid var(--accent2);}
+    .firow{display:flex;gap:.55rem;margin-bottom:.65rem;}
+    .firow .fr{flex:1;margin-bottom:0;}
+    .fhint{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-bottom:.65rem;line-height:1.5;}
+    .cbrow{display:flex;align-items:center;gap:.5rem;margin-bottom:.75rem;}
+    .cbrow input{accent-color:var(--accent);}
+    /* recurring list items */
+    .ritem{display:flex;align-items:center;gap:.5rem;padding:.55rem .65rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;margin-bottom:.45rem;}
+    .rname{flex:1;font-size:.8rem;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+    .ramt{font-family:'DM Mono',monospace;font-size:.72rem;white-space:nowrap;flex-shrink:0;}
+    .rday{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);flex-shrink:0;}
+    /* goals */
+    .gitem{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:.85rem;margin-bottom:.6rem;}
+    .gname{font-weight:600;font-size:.88rem;margin-bottom:.35rem;}
+    .gbar-bg{width:100%;height:6px;background:#222;border-radius:3px;overflow:hidden;margin:.3rem 0;}
     .gbar-fill{height:100%;border-radius:3px;transition:width .5s;}
-    .gmeta{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:.18rem;}
+    .gmeta{font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);display:flex;justify-content:space-between;flex-wrap:wrap;gap:.25rem;}
 
     /* WHAT-IF */
     .wi-result{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.75rem;margin-top:.65rem;}
@@ -276,9 +265,9 @@
 
     <!-- EVENTS -->
     <div class="sb-body active" id="tabEvents">
-      <div class="sb-h4">One-time event</div>
-      <div class="fr"><label>Name</label><input class="fi" id="eN" placeholder="e.g. Piano lesson"/></div>
-      <div class="fr"><label>Date</label><input class="fi" id="eD" type="date"/></div>
+      <div class="sb-h4" id="lblOneTimeTitle">One-time event</div>
+      <div class="fr"><label id="lblEvtName">Name</label><input class="fi" id="eN" placeholder="e.g. Piano lesson"/></div>
+      <div class="fr"><label id="lblEvtDate">Date</label><input class="fi" id="eD" type="date"/></div>
       <div class="firow">
         <div class="fr" style="flex:2"><label id="lblEvtAmt">Amount</label><input class="fi" id="eA" type="number" step="0.01" placeholder="+230 or -300"/></div>
         <div class="fr"><label id="lblEvtCur">Currency</label>
@@ -289,29 +278,29 @@
         </div>
       </div>
       <div class="fhint" id="lblEvtHint">Positive = income · Negative = expense</div>
-      <button class="btn btn-a" style="width:100%;margin-top:.3rem" onclick="addOneTime()">Add Event</button>
-      <div class="sb-h4" style="margin-top:1rem">Monthly recurring</div>
-      <div class="fr"><label>Name</label><input class="fi" id="rN" placeholder="e.g. Rent"/></div>
+      <button class="btn btn-a" style="width:100%;margin-top:.3rem" id="btnAddEvent" onclick="addOneTime()">Add Event</button>
+      <div class="sb-h4" style="margin-top:1rem" id="lblRecTitle">Monthly recurring</div>
+      <div class="fr"><label id="lblRecName">Name</label><input class="fi" id="rN" placeholder="e.g. Rent"/></div>
       <div class="firow">
-        <div class="fr"><label id="lblRecDay">Day</label><input class="fi" id="rD" type="number" min="1" max="31" placeholder="28"/></div>
+        <div class="fr"><label id="lblRecDay">Day of month</label><input class="fi" id="rD" type="number" min="1" max="31" placeholder="28"/></div>
         <div class="fr" style="flex:2"><label id="lblRecAmt">Amount</label><input class="fi" id="rA" type="number" step="0.01" placeholder="-1200"/></div>
-        <div class="fr"><label id="lblRecCur">Cur.</label>
+        <div class="fr"><label id="lblRecCur">Currency</label>
           <select class="fi" id="rCur" style="padding:.3rem .2rem">
             <option value="EUR">EUR</option><option value="CHF" selected>CHF</option>
             <option value="USD">USD</option><option value="GBP">GBP</option><option value="PLN">PLN</option>
           </select>
         </div>
       </div>
-      <button class="btn btn-a" style="width:100%" onclick="addRec('cash')">Add Recurring</button>
-      <div class="sb-h4" style="margin-top:1rem">Recurring events</div>
+      <button class="btn btn-a" style="width:100%" id="btnAddRec" onclick="addRec('cash')">Add Recurring</button>
+      <div class="sb-h4" style="margin-top:1rem" id="lblRecListTitle">Recurring events</div>
       <div id="recCash"></div>
     </div>
 
     <!-- SAVINGS -->
     <div class="sb-body" id="tabSavings">
-      <div class="sb-h4">One-time transfer to savings</div>
-      <div class="fr"><label>Name</label><input class="fi sav" id="seN" placeholder="e.g. Bonus transfer"/></div>
-      <div class="fr"><label>Date</label><input class="fi sav" id="seD" type="date"/></div>
+      <div class="sb-h4" id="lblSavOneTitle">One-time transfer to savings</div>
+      <div class="fr"><label id="lblSavName">Name</label><input class="fi sav" id="seN" placeholder="e.g. Bonus transfer"/></div>
+      <div class="fr"><label id="lblSavDate">Date</label><input class="fi sav" id="seD" type="date"/></div>
       <div class="firow">
         <div class="fr" style="flex:2"><label id="lblSavAmt">Amount (positive)</label><input class="fi sav" id="seA" type="number" step="0.01" placeholder="500"/></div>
         <div class="fr"><label id="lblSavCur">Currency</label>
@@ -322,49 +311,49 @@
         </div>
       </div>
       <div class="fhint" id="lblSavHint">Reduces cash, adds to savings</div>
-      <button class="btn btn-b" style="width:100%;margin-top:.3rem" onclick="addSavingOne()">Add Transfer</button>
-      <div class="sb-h4" style="margin-top:1rem">Monthly recurring saving</div>
-      <div class="fr"><label>Name</label><input class="fi sav" id="srN" placeholder="e.g. Monthly saving"/></div>
+      <button class="btn btn-b" style="width:100%;margin-top:.3rem" id="btnAddSavOne" onclick="addSavingOne()">Add Transfer</button>
+      <div class="sb-h4" style="margin-top:1rem" id="lblSrTitle">Monthly recurring saving</div>
+      <div class="fr"><label id="lblSrName">Name</label><input class="fi sav" id="srN" placeholder="e.g. Monthly saving"/></div>
       <div class="firow">
-        <div class="fr"><label id="lblSrDay">Day</label><input class="fi sav" id="srD" type="number" min="1" max="31" placeholder="1"/></div>
+        <div class="fr"><label id="lblSrDay">Day of month</label><input class="fi sav" id="srD" type="number" min="1" max="31" placeholder="1"/></div>
         <div class="fr" style="flex:2"><label id="lblSrAmt">Amount</label><input class="fi sav" id="srA" type="number" step="0.01" placeholder="300"/></div>
-        <div class="fr"><label id="lblSrCur">Cur.</label>
+        <div class="fr"><label id="lblSrCur">Currency</label>
           <select class="fi sav" id="srCur" style="padding:.3rem .2rem">
             <option value="EUR">EUR</option><option value="CHF" selected>CHF</option>
             <option value="USD">USD</option><option value="GBP">GBP</option><option value="PLN">PLN</option>
           </select>
         </div>
       </div>
-      <button class="btn btn-b" style="width:100%" onclick="addRec('saving')">Add Recurring Saving</button>
-      <div class="sb-h4" style="margin-top:1rem">Recurring savings</div>
+      <button class="btn btn-b" style="width:100%" id="btnAddSavRec" onclick="addRec('saving')">Add Recurring Saving</button>
+      <div class="sb-h4" style="margin-top:1rem" id="lblSrListTitle">Recurring savings</div>
       <div id="recSav"></div>
     </div>
 
     <!-- GOALS -->
     <div class="sb-body" id="tabGoals">
-      <div class="sb-h4">New goal</div>
-      <div class="fr"><label>Goal name</label><input class="fi" id="gN" placeholder="e.g. Emergency fund"/></div>
-      <div class="fr"><label>Target (CHF)</label><input class="fi" id="gT" type="number" step="100" placeholder="10000"/></div>
-      <div class="cbrow"><input type="checkbox" id="gUS" checked/><label for="gUS" style="font-size:.78rem;cursor:pointer">Include savings toward this goal</label></div>
-      <button class="btn btn-a" style="width:100%" onclick="addGoal()">Add Goal</button>
-      <div class="sb-h4" style="margin-top:1rem">Your goals</div>
+      <div class="sb-h4" id="lblGoalTitle">New goal</div>
+      <div class="fr"><label id="lblGoalName">Goal name</label><input class="fi" id="gN" placeholder="e.g. Emergency fund"/></div>
+      <div class="fr"><label id="lblGoalTarget">Target</label><input class="fi" id="gT" type="number" step="100" placeholder="10000"/></div>
+      <div class="cbrow"><input type="checkbox" id="gUS" checked/><label for="gUS" id="lblGoalSav" style="font-size:.78rem;cursor:pointer">Include savings toward this goal</label></div>
+      <button class="btn btn-a" style="width:100%" id="btnAddGoal" onclick="addGoal()">Add Goal</button>
+      <div class="sb-h4" style="margin-top:1rem" id="lblGoalListTitle">Your goals</div>
       <div id="goalsList"></div>
     </div>
 
     <!-- WHAT-IF -->
     <div class="sb-body" id="tabWhatif">
-      <div class="sb-h3">What-If Simulator</div>
-      <div class="fr"><label>Purchase name</label><input class="fi" id="wiN" placeholder="e.g. New laptop"/></div>
-      <div class="fr"><label>Date of purchase</label><input class="fi" id="wiD" type="date"/></div>
-      <div class="fr"><label>Cost (CHF, positive)</label><input class="fi" id="wiA" type="number" step="0.01" placeholder="1200"/></div>
-      <button class="btn btn-a" style="width:100%;margin-top:.2rem" onclick="runWI()">Simulate</button>
+      <div class="sb-h3" id="lblWITitle">What-If Simulator</div>
+      <div class="fr"><label id="lblWIName">Purchase name</label><input class="fi" id="wiN" placeholder="e.g. New laptop"/></div>
+      <div class="fr"><label id="lblWIDate">Date of purchase</label><input class="fi" id="wiD" type="date"/></div>
+      <div class="fr"><label id="lblWICost">Cost (positive)</label><input class="fi" id="wiA" type="number" step="0.01" placeholder="1200"/></div>
+      <button class="btn btn-a" style="width:100%;margin-top:.2rem" id="btnWIRun" onclick="runWI()">Simulate</button>
       <div id="wiOut"></div>
     </div>
 
     <!-- PROGRESS / BADGES -->
     <div class="sb-body" id="tabProgress">
       <div id="levelCard"></div>
-      <div class="sb-h4">Milestones & Badges</div>
+      <div class="sb-h4" id="lblBadgesTitle">Milestones & Badges</div>
       <div id="badgeGrid"></div>
     </div>
 
@@ -1691,6 +1680,24 @@ function applyI18n(){
     'settNameBtn':'saveName','settBufLabel':'healthBuffer',
     'settBufDesc':'healthBufferDesc','settCurBufLabel':'currentBuffer',
     'settDataLabel':'settDataLabel','settDataDesc':'settDataDesc','settExportBtn':'settExportBtn','settImportBtn':'settImportBtn',
+    // Events tab
+    'lblOneTimeTitle':'oneTimeTitle','lblEvtName':'name','lblEvtDate':'date',
+    'lblEvtAmt':'amount','lblEvtCur':'currency','lblEvtHint':'evtHint','btnAddEvent':'addEvent',
+    'lblRecTitle':'monthlyRecurring','lblRecName':'name','lblRecDay':'dayOfMonth',
+    'lblRecAmt':'amount','lblRecCur':'currency','btnAddRec':'addRecurring','lblRecListTitle':'recurringEvents',
+    // Savings tab
+    'lblSavOneTitle':'savOneTitle','lblSavName':'name','lblSavDate':'date',
+    'lblSavAmt':'savAmount','lblSavCur':'currency','lblSavHint':'savHint','btnAddSavOne':'addTransfer',
+    'lblSrTitle':'savRecTitle','lblSrName':'name','lblSrDay':'dayOfMonth',
+    'lblSrAmt':'amount','lblSrCur':'currency','btnAddSavRec':'addRecurringSav','lblSrListTitle':'recurringSavings',
+    // Goals tab
+    'lblGoalTitle':'newGoal','lblGoalName':'goalName','lblGoalTarget':'target',
+    'lblGoalSav':'includeGoalSav','btnAddGoal':'addGoal','lblGoalListTitle':'yourGoals',
+    // What-If tab
+    'lblWITitle':'whatIfTitle','lblWIName':'purchaseName','lblWIDate':'purchaseDate',
+    'lblWICost':'purchaseCost','btnWIRun':'simulate',
+    // Progress tab
+    'lblBadgesTitle':'badgesTitle',
     'addFundsTitle':'addFundsTitle','addFundsAmtLabel':'addFundsAmount',
     'addFundsCurLabel':'addFundsCurrency','addFundsDestLabel':'addFundsDest',
     'addFundsOptCash':'addFundsCash','addFundsOptSav':'addFundsSav',
