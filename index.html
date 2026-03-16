@@ -331,6 +331,12 @@
         </div>
       </div>
       <div class="fhint" id="lblSavHint">Reduces cash, adds to savings</div>
+      <div class="fr" style="margin-top:.3rem">
+        <label id="lblSavGoal">Allocate to</label>
+        <select class="fi sav" id="seGoal">
+          <option value="security" id="seGoalSecurity">🛡 Security (buffer)</option>
+        </select>
+      </div>
       <button class="btn btn-b" style="width:100%;margin-top:.3rem" id="btnAddSavOne" onclick="addSavingOne()">Add Transfer</button>
       <div class="sb-h4" style="margin-top:1rem" id="lblSrTitle">Monthly recurring saving</div>
       <div class="fr"><label id="lblSrName">Name</label><input class="fi sav" id="srN" placeholder="e.g. Monthly saving"/></div>
@@ -343,6 +349,12 @@
             <option value="USD">USD</option><option value="GBP">GBP</option><option value="PLN">PLN</option>
           </select>
         </div>
+      </div>
+      <div class="fr">
+        <label id="lblSrGoal">Allocate to</label>
+        <select class="fi sav" id="srGoal">
+          <option value="security" id="srGoalSecurity">🛡 Security (buffer)</option>
+        </select>
       </div>
       <button class="btn btn-b" style="width:100%" id="btnAddSavRec" onclick="addRec('saving')">Add Recurring Saving</button>
       <div class="sb-h4" style="margin-top:1rem" id="lblSrListTitle">Recurring savings</div>
@@ -424,10 +436,7 @@
         </label>
       </div>
       <div class="sb-h4" style="margin-top:1rem" id="settCurBufLabel">Current buffer</div>
-      <div style="display:flex;align-items:baseline;gap:1rem;padding:.3rem 0">
-        <div id="bufDisplay" style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--accent2)"></div>
-        <div id="bufDofDisplay" style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted)"></div>
-      </div>
+      <div id="bufDisplay" style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--accent2);padding:.3rem 0"></div>
 
       <div class="sb-h4" style="margin-top:1.2rem" id="settDataLabel">Data</div>
       <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:.6rem" id="settDataDesc">Export your data as a backup file, or import a previously exported file.</div>
@@ -461,9 +470,15 @@
     </div>
     <div class="fr">
       <label id="addFundsDestLabel">Destination</label>
-      <select class="fi" id="addFundsDest">
+      <select class="fi" id="addFundsDest" onchange="toggleAddFundsGoal()">
         <option value="cash" id="addFundsOptCash">Cash balance</option>
         <option value="sav" id="addFundsOptSav">Savings balance</option>
+      </select>
+    </div>
+    <div class="fr" id="addFundsGoalRow" style="display:none">
+      <label id="addFundsGoalLabel">Allocate to</label>
+      <select class="fi" id="addFundsGoal">
+        <option value="security" id="addFundsGoalSec">🛡 Security (buffer)</option>
       </select>
     </div>
     <div id="addFundsPreview" style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--accent2);min-height:1.5rem;margin:.5rem 0;padding:.4rem .5rem;background:#0a1a10;border-radius:4px;display:none"></div>
@@ -535,6 +550,8 @@ let S = {
   userName: '',
   cashBalance: 0,
   savingsBalance: 0,
+  goalAllocations: {},  // {goalId: amount} — savings allocated to specific goals
+  bufferHistory: [],    // [{month:'YYYY-MM', outflow:N}] — last 3 months actual outflows
   bufferMode: 'c',
   recurring: [],
   oneTime: [],
@@ -563,6 +580,8 @@ function loadData(){
       S.oneTime.forEach(e=>{if(!e.kind)e.kind='cash';});
       if(!S.goals)S.goals=[];
       if(S.savingsBalance===undefined)S.savingsBalance=0;
+      if(!S.goalAllocations)S.goalAllocations={};
+      if(!S.bufferHistory)S.bufferHistory=[];
       if(!S.bufferMode)S.bufferMode='c';
       if(!S.earnedBadges)S.earnedBadges=[];
       if(!S.hideTutorial)S.hideTutorial=false;
@@ -587,6 +606,28 @@ function persist(){
       if(el){el.textContent='✓ saved';el.className='sind ok';setTimeout(()=>{el.textContent='';el.className='sind';},1500);}
     }catch(e){console.warn('Failed to save:',e);}
   },400);
+}
+
+// ══════════════════════════════
+// SAVINGS SPLIT: security vs goal-allocated
+// ══════════════════════════════
+function goalSavings(){
+  // Sum of all goal allocations (capped at savingsBalance)
+  const alloc=Object.values(S.goalAllocations||{}).reduce((s,v)=>s+v,0);
+  return Math.min(S.savingsBalance, Math.max(0,alloc));
+}
+function securitySavings(){
+  // Savings NOT allocated to any goal — used for buffer calculation
+  return Math.max(0,S.savingsBalance-goalSavings());
+}
+function allocateToGoal(goalId, amount){
+  if(!S.goalAllocations)S.goalAllocations={};
+  S.goalAllocations[goalId]=Math.max(0,amount);
+  persist();render();
+}
+function deallocateGoal(goalId){
+  if(S.goalAllocations)delete S.goalAllocations[goalId];
+  persist();render();
 }
 
 // ══════════════════════════════
@@ -746,6 +787,37 @@ function genEvents(extraEvents=[]){
 // ══════════════════════════════
 // BUFFER
 // ══════════════════════════════
+// ── BUFFER HISTORY: track actual monthly outflows ──
+function updateBufferHistory(){
+  const mk=`${TODAY.getFullYear()}-${String(TODAY.getMonth()+1).padStart(2,'0')}`;
+  if(!S.bufferHistory)S.bufferHistory=[];
+  // Calculate this month's actual outflows so far + projected rest of month
+  const endOfMonth=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,0);
+  const evs=genEvents();
+  let outflow=0;
+  evs.forEach(ev=>{
+    const d=ev.date;
+    if(d.getFullYear()===TODAY.getFullYear()&&d.getMonth()===TODAY.getMonth()&&ev.amount<0&&ev.kind!=='saving')
+      outflow+=Math.abs(ev.amount);
+  });
+  // Update or insert current month
+  const existing=S.bufferHistory.find(h=>h.month===mk);
+  if(existing){existing.outflow=Math.round(outflow*10)/10;}
+  else{S.bufferHistory.push({month:mk,outflow:Math.round(outflow*10)/10});}
+  // Keep only last 3 months
+  S.bufferHistory.sort((a,b)=>a.month>b.month?-1:1);
+  S.bufferHistory=S.bufferHistory.slice(0,3);
+}
+
+function stableBufferFloor(currentWindow){
+  // Use max(current_window, avg_of_history) for stability
+  // Prevents buffer from appearing small mid-month after bills are paid
+  const hist=S.bufferHistory||[];
+  if(hist.length===0)return currentWindow;
+  const avgHist=hist.reduce((s,h)=>s+h.outflow,0)/hist.length;
+  return Math.max(currentWindow, Math.round(avgHist*10)/10);
+}
+
 // ── BUFFER DEFINITIONS ──
 // a = "Break even + cushion": total liq > 0 over next 90 days (income counted)
 //     buffer floor = avg_monthly_expenses / 4
@@ -779,17 +851,16 @@ function calcBuffer(evs){
   evs=evs||genEvents();
   const mode=S.bufferMode||'c';
   if(mode==='a') return Math.round(avgMonthlyExpenses(evs)/4*10)/10;
-  if(mode==='b') return _outflowsInWindow(TODAY,30,evs,false);
-  return _outflowsInWindow(TODAY,90,evs,false);
+  if(mode==='b') return stableBufferFloor(_outflowsInWindow(TODAY,30,evs,false));
+  return stableBufferFloor(_outflowsInWindow(TODAY,90,evs,false));
 }
 
 function rollingBuffer(fromDate,evs){
-  // B/C: fixed floor = outflows in 30/90 days from TODAY (not from event date)
-  // The cushion you need doesn't change as events approach — it's always "can I survive 30/90 days from now"
+  // B/C: fixed floor from TODAY, stabilized with history
   const mode=S.bufferMode||'c';
   if(mode==='a') return Math.round(avgMonthlyExpenses(evs)/4*10)/10;
-  if(mode==='b') return _outflowsInWindow(TODAY,30,evs,false);
-  return _outflowsInWindow(TODAY,90,evs,false);
+  if(mode==='b') return stableBufferFloor(_outflowsInWindow(TODAY,30,evs,false));
+  return stableBufferFloor(_outflowsInWindow(TODAY,90,evs,false));
 }
 
 // ── GLOBAL BANER: scan 90 days for any buffer violation ──
@@ -812,8 +883,9 @@ function buildBaner(evs, startCash, startSav, buf){
     (byDay[k]||[]).forEach(ev=>{
       if(ev.kind==='saving'){cash+=ev.amount;sav+=Math.abs(ev.amount);}else cash+=ev.amount;
     });
-    const liq=cash+sav;
-    if(liq<buf){
+    const liq=cash+sav; // full liq for display
+    const liqForBuffer=cash+(sav>0?Math.max(0,sav-(Object.values(S.goalAllocations||{}).reduce((a,b)=>a+b,0))):0);
+    if(liqForBuffer<buf){
       first={date:new Date(cur),liq,shortfall:buf-liq};
       break; // stop at first violation
     }
@@ -994,6 +1066,7 @@ function computeLevel(){
 function render(){
   window.S=S; // keep global in sync
   checkBadges();
+  updateBufferHistory();
   const evs=genEvents();
   const buf=calcBuffer(evs);
 
@@ -1003,6 +1076,15 @@ function render(){
 
   document.getElementById('dCash').textContent=fmtM(autoCash);
   document.getElementById('dSav').textContent=fmtM(autoSav);
+  // Show security/goal split hint in savings area
+  const secSav=securitySavings();
+  const gSav=goalSavings();
+  const savHintEl=document.getElementById('balHintSav');
+  if(savHintEl&&gSav>0){
+    savHintEl.innerHTML=`<span style="color:var(--accent2)">🛡 ${fmtM(secSav)}</span> ${t('security')||'security'} · <span style="color:var(--muted)">🎯 ${fmtM(gSav)}</span> ${t('goals')||'goals'}`;
+  } else if(savHintEl){
+    savHintEl.textContent=t('autoCalcSav')||'Auto-calculated · savings';
+  }
   document.getElementById('iCash').value=S._startingCash||'';
   document.getElementById('iSav').value=autoSav||'';
   document.getElementById('hCash').textContent=fmtM(autoCash);
@@ -1012,32 +1094,6 @@ function render(){
   const bufModeLabel={a:t('withIncome'),b:t('noInc'),c:t('twoMo')}[S.bufferMode||'c'];
   document.getElementById('hBufMode').textContent=bufModeLabel;
   document.getElementById('bufDisplay').textContent=fmtM(buf);
-
-  // Days of Freedom: how many days can we cover outflows from current liq
-  const dofEl=document.getElementById('hDof');
-  if(dofEl){
-    const liqNow=autoCash+autoSav;
-    let dof=0;
-    if(liqNow>0){
-      // scan forward day by day until liq exhausted
-      let rem=liqNow;
-      const dayEvs={};
-      evs.forEach(ev=>{if(ev.amount<0){const k=isoOf(ev.date);(dayEvs[k]||(dayEvs[k]=[])).push(ev);}});
-      const cur=new Date(TODAY);
-      const maxDays=365*20;
-      for(let d=0;d<maxDays;d++){
-        const k=isoOf(cur);
-        (dayEvs[k]||[]).forEach(ev=>{rem+=ev.amount;});
-        if(rem<=0)break;
-        dof=d+1;
-        cur.setDate(cur.getDate()+1);
-      }
-      if(dof>=365*20)dof='∞';
-    }
-    dofEl.textContent=dof==='∞'?'∞':(dof+'d');
-    const dofColor=typeof dof==='string'?'var(--accent2)':dof<30?'var(--red)':dof<90?'var(--orange)':'var(--accent2)';
-    dofEl.style.color=dofColor;
-  }
 
   // "Do dyspozycji" — profile-aware horizon
   const availEl=document.getElementById('hAvail');
@@ -1097,7 +1153,7 @@ function render(){
 
       // Health indicator: compute ratio for all non-income events
       let hc='transparent',ratio=1,ratioTip='',rb=0;
-      const liqNow=cash+sav;
+      const liqNow=cash+securitySavings(); // buffer uses security savings only
       if(isExp||isSav){
         rb=rollingBuffer(ev.date,evs);
         // Buffer ratio: how well liq covers the buffer floor
@@ -1183,7 +1239,7 @@ function render(){
     </div>`;
   });
 
-  document.getElementById('hEnd').textContent=fmtM(cash);
+  document.getElementById('hEnd').textContent=fmtM(cash+sav);
 
   // ── Global buffer violation baner ──
   const baner=buildBaner(evs,autoCash,autoSav,buf);
@@ -1298,6 +1354,14 @@ function renderGoals(){
             ${fmtM(cur)} / ${fmtM(g.target)}<br>
             <span style="color:var(--accent2)">🎯 ${dtS}</span>
           </div>
+          <div style="display:flex;align-items:center;gap:.4rem;margin-top:.45rem;padding-top:.4rem;border-top:1px solid var(--border)">
+            <span style="font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted)">🎯 ${t('savedForGoal')||'saved for this goal'}:</span>
+            <input type="number" step="0.01" min="0" max="${S.savingsBalance}"
+              value="${(S.goalAllocations||{})[g.id]||0}"
+              style="width:80px;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'DM Mono',monospace;font-size:.72rem;padding:.18rem .35rem;border-radius:3px;text-align:right"
+              onchange="allocateToGoal('${g.id}',parseFloat(this.value)||0)"/>
+            <span style="font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted)">${S.currency}</span>
+          </div>
         </div>
       </div>
     </div>`;
@@ -1340,26 +1404,7 @@ function updateBufUI(){
   });
   const checked=document.querySelector(`.buf-opt input[value="${S.bufferMode||'c'}"]`);
   if(checked)checked.checked=true;
-  // Show DoF in settings
-  const dofDisp=document.getElementById('bufDofDisplay');
-  if(dofDisp){
-    const evs=genEvents();
-    const liq=computeCurrentCash()+S.savingsBalance;
-    let rem=liq,dof=0;
-    const dayEvs={};
-    evs.forEach(ev=>{if(ev.amount<0){const k=isoOf(ev.date);(dayEvs[k]||(dayEvs[k]=[])).push(ev);}});
-    const cur=new Date(TODAY);
-    for(let d=0;d<365*20;d++){
-      const k=isoOf(cur);
-      (dayEvs[k]||[]).forEach(ev=>{rem+=ev.amount;});
-      if(rem<=0)break;
-      dof=d+1;
-      cur.setDate(cur.getDate()+1);
-    }
-    const dofStr=dof>=365*20?'∞':(dof+'d');
-    const dofColor=dof>=365*20?'var(--accent2)':dof<30?'var(--red)':dof<90?'var(--orange)':'var(--accent2)';
-    dofDisp.innerHTML=`<span style="color:${dofColor}">${dofStr}</span> ${t('daysOfFreedom')||'days of freedom'}`;
-  }
+
 }
 
 // ══════════════════════════════
@@ -1926,7 +1971,7 @@ function applyI18n(){
     // What-If tab
     'lblWITitle':'whatIfTitle','lblWIName':'purchaseName','lblWIDate':'purchaseDate',
     'lblWICost':'purchaseCost','btnWIRun':'simulate',
-    'hLblDof':'daysOfFreedom','hLblAvail':'availableLabel',
+    'hLblAvail':'availableLabel',
     // Progress tab
     'lblBadgesTitle':'badgesTitle',
     'addFundsTitle':'addFundsTitle','addFundsAmtLabel':'addFundsAmount',
@@ -1991,12 +2036,31 @@ function updateFxStatus(result){
 // ══════════════════════════════
 // ADD FUNDS
 // ══════════════════════════════
+function populateGoalDropdowns(){
+  // Build options: security + all goals
+  const opts=['<option value="security">🛡 '+(t('security')||'Security')+' ('+t('healthBuffer'||'buffer')+')</option>']
+    .concat((S.goals||[]).map(g=>`<option value="${g.id}">🎯 ${escH(g.name)}</option>`))
+    .join('');
+  ['seGoal','srGoal','addFundsGoal'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.innerHTML=opts;
+  });
+}
+
+function toggleAddFundsGoal(){
+  const dest=document.getElementById('addFundsDest')?.value;
+  const row=document.getElementById('addFundsGoalRow');
+  if(row)row.style.display=dest==='sav'?'':'none';
+}
+
 function showAddFunds(dest){
+  populateGoalDropdowns();
   document.getElementById('addFundsOverlay').style.display='flex';
   document.getElementById('addFundsAmt').value='';
   document.getElementById('addFundsCur').value=S.currency;
   document.getElementById('addFundsDest').value=dest;
   document.getElementById('addFundsPreview').style.display='none';
+  toggleAddFundsGoal();
   applyI18n();
   // wire live preview
   const amtEl=document.getElementById('addFundsAmt');
@@ -2041,6 +2105,12 @@ function confirmAddFunds(){
     S._startingDate=isoOf(TODAY);
   } else {
     S.savingsBalance=Math.max(0,(S.savingsBalance||0)+converted);
+    // Auto-allocate to goal if selected
+    const gId=document.getElementById('addFundsGoal')?.value||'security';
+    if(gId&&gId!=='security'){
+      if(!S.goalAllocations)S.goalAllocations={};
+      S.goalAllocations[gId]=(S.goalAllocations[gId]||0)+Math.abs(converted);
+    }
   }
   document.getElementById('addFundsOverlay').style.display='none';
   persist();render();checkBadges();
@@ -2323,12 +2393,22 @@ function addOneTime(){
 function addSavingOne(){
   const n=document.getElementById('seN').value.trim(),d=document.getElementById('seD').value,a=parseFloat(document.getElementById('seA').value);
   const cur=document.getElementById('seCur')?.value||S.currency;
+  const goalId=document.getElementById('seGoal')?.value||'security';
   if(!n||!d||isNaN(a)||a<=0){alert(t('amountPositive'));return;}
   const amtBase=cur!==S.currency?convertToBase(a,cur):a;
   const rounded=Math.round(amtBase*10)/10;
   const ev={id:'sv_'+Date.now(),name:n,date:d,amount:rounded,kind:'saving',
-    currency:cur,amountOriginal:a,amountOriginal_sign:1};
-  const doIt=()=>{S.oneTime.push(ev);document.getElementById('seN').value='';document.getElementById('seA').value='';persist();render();checkBadges();};
+    currency:cur,amountOriginal:a,amountOriginal_sign:1,savGoal:goalId};
+  const doIt=()=>{
+    S.oneTime.push(ev);
+    // Auto-allocate to goal if not security
+    if(goalId&&goalId!=='security'){
+      if(!S.goalAllocations)S.goalAllocations={};
+      S.goalAllocations[goalId]=(S.goalAllocations[goalId]||0)+rounded;
+    }
+    document.getElementById('seN').value='';document.getElementById('seA').value='';
+    persist();render();checkBadges();
+  };
   _doAdd(doIt,d,-rounded,'saving');
 }
 function addRec(kind){
@@ -2469,6 +2549,7 @@ function tab(t){
     el.classList.toggle('active',['events','savings','goals','whatif','progress','settings'][i]===t);
   });
   if(t==='goals')renderGoals();
+  if(t==='savings'){populateGoalDropdowns();}
   if(t==='progress')renderProgress();
   if(t==='settings')updateBufUI();
 
