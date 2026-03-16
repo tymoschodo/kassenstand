@@ -93,6 +93,8 @@
     .txact{display:flex;justify-content:flex-end;opacity:0;transition:opacity .1s;}
     .pos{color:var(--accent2);}.neg{color:var(--red);}.negbal{color:var(--red);}.warnbal{color:var(--orange);}
     .nudge-row{padding:.28rem 1.6rem .42rem;background:#09120f;border-bottom:1px solid #181818;}
+    .redline-banner{padding:.55rem 1.6rem;background:#1a0505;border-top:2px solid var(--red);border-bottom:2px solid var(--red);display:flex;align-items:center;gap:.8rem;font-family:'DM Mono',monospace;font-size:.72rem;color:var(--red);}
+    .redline-banner b{color:#ff4444;font-size:.85rem;}
     .nudge{background:#0d1a17;border:1px solid #1a3530;border-radius:4px;padding:.3rem .6rem;font-size:.68rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;color:var(--muted);}
     .nudge b{color:var(--text);}
 
@@ -278,7 +280,6 @@
       <div class="tab" id="tabBtnGoals" onclick="tab('goals')">Goals</div>
       <div class="tab" id="tabBtnWhatif" onclick="tab('whatif')">What-If</div>
       <div class="tab" id="tabBtnProgress" onclick="tab('progress')">🏆</div>
-      <div class="tab" id="tabBtnChart" onclick="tab('chart')">📈</div>
       <div class="tab" id="tabBtnSettings" onclick="tab('settings')" style="font-size:1.1rem">⚙</div>
     </div>
 
@@ -377,20 +378,6 @@
     </div>
 
     <!-- CHART -->
-    <div class="sb-body" id="tabChart">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem">
-        <div class="sb-h3" id="lblChartTitle" style="margin:0">Projection</div>
-        <div style="display:flex;gap:.3rem;align-items:center">
-          <button class="btn btn-g" id="chartBtn1y" onclick="renderChart(1)" style="font-size:.6rem;padding:.2rem .5rem">1Y</button>
-          <button class="btn btn-g" id="chartBtn5y" onclick="renderChart(5)" style="font-size:.6rem;padding:.2rem .5rem">5Y</button>
-          <button class="btn btn-g" id="chartBtn20y" onclick="renderChart(20)" style="font-size:.6rem;padding:.2rem .5rem">20Y</button>
-        </div>
-      </div>
-      <div style="position:relative;height:200px;margin-bottom:1rem">
-        <canvas id="projChart"></canvas>
-      </div>
-      <div id="chartStats" style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);line-height:1.8"></div>
-    </div>
 
     <!-- SETTINGS -->
     <div class="sb-body" id="tabSettings">
@@ -1062,6 +1049,7 @@ function render(){
 
   let html='';
   let cash=autoCash,sav=autoSav;
+  let _redLineCrossed=autoCash<0; // already in the red from start
 
   getMonths().forEach(({year,month},mi)=>{
     const mk=`${year}-${month}`;
@@ -1136,7 +1124,18 @@ function render(){
         ${showNudge&&nudgeAmt>0?`<div class="nudge-row"><div class="nudge">
           <span style="color:var(--orange)">⚠</span>
           <span>${t('nudgeMsg')||'Buffer tight after this expense. Consider reducing by'} <b>${fmtM(nudgeAmt)}</b>.</span>
-        </div></div>`:''}`;
+        </div></div>`:''}
+        ${(()=>{
+          if(!isPast&&!_redLineCrossed&&cash<0){
+            _redLineCrossed=true;
+            const dateStr=ev.date.toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'});
+            return `<div class="redline-banner">
+              <span style="font-size:1.1rem">⛔</span>
+              <span><b>${t('redLineTitle')||'Cash runs out'}</b> — ${dateStr}. ${t('redLineMsg')||'You will be in the red from this point on.'}</span>
+            </div>`;
+          }
+          return '';
+        })()}`;
     });
 
     const ec=cash<0?'var(--red)':'var(--accent2)';
@@ -1194,6 +1193,22 @@ function render(){
     </div>`;
   });
 
+  // ── Chart section — embedded in timeline ──
+  html+=`<div class="month-block" id="timelineChartBlock" style="padding:1.2rem 1.6rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.8rem">
+      <div style="font-family:'DM Serif Display',serif;font-size:1rem" id="lblChartTitle">${t('lblChartTitle')||'Projection'}</div>
+      <div style="display:flex;gap:.3rem">
+        <button class="btn btn-g" id="chartBtn1y" onclick="renderChart(1)" style="font-size:.6rem;padding:.2rem .5rem">1Y</button>
+        <button class="btn btn-g" id="chartBtn5y" onclick="renderChart(5)" style="font-size:.6rem;padding:.2rem .5rem">5Y</button>
+        <button class="btn btn-g" id="chartBtn20y" onclick="renderChart(20)" style="font-size:.6rem;padding:.2rem .5rem">20Y</button>
+      </div>
+    </div>
+    <div style="position:relative;height:220px;margin-bottom:.6rem">
+      <canvas id="projChart"></canvas>
+    </div>
+    <div id="chartStats" class="mono-xs" style="line-height:1.8"></div>
+  </div>`;
+
   // ── Show more / show less ──
   const curY=S._timelineYears||0;
   html+=`<div style="padding:.9rem 1.6rem;text-align:center;border-top:1px solid var(--border)">
@@ -1206,6 +1221,8 @@ function render(){
   renderGoals();
   renderProgress();
   updateBufUI();
+  // Render chart inline in timeline
+  setTimeout(()=>renderChart(_chartYears),80);
 }
 
 // ══════════════════════════════
@@ -1744,7 +1761,45 @@ function wizMagicGenerate(){
   window._wizLifeBudget=null;
   document.getElementById('wizOverlay').style.display='none';
   persist();render();checkBadges();
-  showToast(t('futureReady'));
+
+  // "Do dyspozycji" — until next income, after planned expenses, buffer protected
+  const evs=genEvents();
+  const buf=calcBuffer(evs);
+  const currentCash=computeCurrentCash();
+  const liq=currentCash+S.savingsBalance;
+  const nextIncome=evs.find(ev=>ev.date>TODAY&&ev.amount>0&&ev.kind!=='saving');
+  const cutoff=nextIncome?nextIncome.date:null;
+  let expUntil=0;
+  evs.forEach(ev=>{
+    if(ev.date<TODAY)return;
+    if(cutoff&&ev.date>=cutoff)return;
+    if(ev.amount<0&&ev.kind!=='saving')expUntil+=Math.abs(ev.amount);
+  });
+  const available=Math.round((currentCash-expUntil-buf)*100)/100;
+  const cutoffStr=cutoff?cutoff.toLocaleDateString(undefined,{day:'numeric',month:'long'}):null;
+
+  setTimeout(()=>{
+    const msg=available>0
+      ? `<div style="text-align:center;padding:1.2rem 1rem">
+          <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">${t('safeToSpendLabel')||'Do dyspozycji'}</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:2.2rem;color:var(--accent);letter-spacing:-.03em;margin-bottom:.25rem">${fmtM(available)}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.6">
+            ${cutoffStr?`${t('safeToSpendUntil')||'do'} <b style="color:var(--text)">${cutoffStr}</b> · `:''}${t('safeToSpendSub')||'po uwzględnieniu wydatków, bufor chroniony'}<br>
+            ${t('bufferLabel')||'bufor'}: ${fmtM(buf)}
+          </div>
+        </div>`
+      : `<div style="text-align:center;padding:1.2rem 1rem">
+          <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--red);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">${t('bufferAlert')||'Bufor zagrożony'}</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:1.8rem;color:var(--orange);letter-spacing:-.03em;margin-bottom:.25rem">${fmtM(Math.max(0,liq))}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted)">${t('safeToSpendBelow')||'całkowita płynność'} · ${t('bufferLabel')||'bufor'} ${fmtM(buf)} ${t('safeToSpendNotCovered')||'niezabezpieczony'}</div>
+        </div>`;
+
+    showModal('✨ '+t('futureReady'), msg+
+      `<div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);text-align:center;padding:.4rem 0;border-top:1px solid var(--border);margin-top:.5rem">
+        ${t('safeToSpendNote')||'Twoja 12-miesięczna oś czasu jest gotowa.'}
+      </div>`,
+      [{label:t('letsGo')||'Zaczynamy →', cls:'btn-a', fn:closeModal}]);
+  }, 400);
 }
 let _wizStep=0;
 function wizSetBuf(m){
@@ -1846,8 +1901,7 @@ function applyI18n(){
     // What-If tab
     'lblWITitle':'whatIfTitle','lblWIName':'purchaseName','lblWIDate':'purchaseDate',
     'lblWICost':'purchaseCost','btnWIRun':'simulate',
-    'hLblDof':'daysOfFreedom','lblChartTitle':'lblChartTitle',
-    'tabBtnChart':'tabChart',
+    'hLblDof':'daysOfFreedom','hLblAvail':'availableLabel',
     // Progress tab
     'lblBadgesTitle':'badgesTitle',
     'addFundsTitle':'addFundsTitle','addFundsAmtLabel':'addFundsAmount',
@@ -2281,16 +2335,16 @@ function adjSaving(id,type,rid,currentAbs,reduceBy){updAmt(id,type,rid,-(current
 // TABS
 // ══════════════════════════════
 function tab(t){
-  ['Events','Savings','Goals','Whatif','Progress','Chart','Settings'].forEach(x=>{
+  ['Events','Savings','Goals','Whatif','Progress','Settings'].forEach(x=>{
     const el=document.getElementById('tab'+x);if(el)el.classList.toggle('active',x.toLowerCase()===t);
   });
   document.querySelectorAll('.tab').forEach((el,i)=>{
-    el.classList.toggle('active',['events','savings','goals','whatif','progress','chart','settings'][i]===t);
+    el.classList.toggle('active',['events','savings','goals','whatif','progress','settings'][i]===t);
   });
   if(t==='goals')renderGoals();
   if(t==='progress')renderProgress();
   if(t==='settings')updateBufUI();
-  if(t==='chart')setTimeout(()=>renderChart(_chartYears),50);
+
 }
 
 // ══════════════════════════════
