@@ -571,6 +571,7 @@ function loadData(){
       if(!S.fxCache)S.fxCache=null;
       if(!S.recurringExceptions)S.recurringExceptions={};
       if(!S.bufferModeSince)S.bufferModeSince=isoOf(TODAY);
+      if(!S.incomeProfile)S.incomeProfile='regular';
       if(!S._startingCash)S._startingCash=S.cashBalance;
       if(!S._startingDate)S._startingDate=isoOf(TODAY);
     }
@@ -1042,9 +1043,9 @@ function render(){
   const availEl=document.getElementById('hAvail');
   if(availEl){
     const profile=S.incomeProfile||'regular';
-    // regular/variable: end of current month; project: 30 rolling days
-    const horizon=profile==='project'
-      ?new Date(TODAY.getFullYear(),TODAY.getMonth(),TODAY.getDate()+30)
+    // stable: end of month; regular: end of month +10% buf; freelance: 60 days +20% buf
+    const horizon=profile==='freelance'
+      ?new Date(TODAY.getFullYear(),TODAY.getMonth(),TODAY.getDate()+60)
       :new Date(TODAY.getFullYear(),TODAY.getMonth()+1,0);
     let expH=0,incH=0;
     evs.forEach(ev=>{
@@ -1053,7 +1054,8 @@ function render(){
       else incH+=ev.amount;
     });
     const netOutflow=Math.max(0,expH-incH);
-    const available=Math.round((autoCash-netOutflow-buf)*100)/100;
+    const safetyMult=profile==='freelance'?1.2:profile==='stable'?1.0:1.1;
+    const available=Math.round((autoCash-netOutflow-(buf*safetyMult))*100)/100;
     const availColor=available<=0?'var(--red)':available<buf*0.25?'var(--orange)':'var(--accent)';
     availEl.textContent=available>0?fmtM(available):'—';
     availEl.style.color=availColor;
@@ -2357,6 +2359,108 @@ function adjSaving(id,type,rid,currentAbs,reduceBy){updAmt(id,type,rid,-(current
 // ══════════════════════════════
 // TABS
 // ══════════════════════════════
+// ══════════════════════════════
+// CHART
+// ══════════════════════════════
+let _chartInstance=null;
+let _chartYears=1;
+
+function genEventsExtended(months){
+  // Like genEvents but extends N months forward (not capped at 12)
+  const evs=[];
+  const now=new Date(TODAY);
+  for(let m=0;m<months;m++){
+    const yr=new Date(now.getFullYear(),now.getMonth()+m,1);
+    const year=yr.getFullYear(),month=yr.getMonth();
+    S.recurring.forEach(rec=>{
+      const last=new Date(year,month+1,0).getDate();
+      const day=Math.min(rec.day,last);
+      const date=new Date(year,month,day);
+      const excKey=isoOf(date);
+      if((S.recurringExceptions[rec.id]||[]).includes(excKey))return;
+      const amt=rec.kind==='saving'?-Math.abs(rec.amount):rec.amount;
+      evs.push({date,amount:amt,kind:rec.kind,monthKey:`${year}-${month}`});
+    });
+  }
+  S.oneTime.forEach(ev=>{
+    const date=parseDt(ev.date);
+    const mk=`${date.getFullYear()}-${date.getMonth()}`;
+    const amt=ev.kind==='saving'?-Math.abs(ev.amount):ev.amount;
+    evs.push({date,amount:amt,kind:ev.kind,monthKey:mk});
+  });
+  return evs.sort((a,b)=>a.date-b.date);
+}
+
+function renderChart(years){
+  _chartYears=years||_chartYears;
+  const canvas=document.getElementById('projChart');
+  if(!canvas||typeof Chart==='undefined')return;
+
+  const months=_chartYears*12;
+  const labels=[],cashData=[],savData=[],liqData=[];
+  let cash=computeCurrentCash(),sav=S.savingsBalance;
+  const allEvs=genEventsExtended(months);
+
+  const now=new Date(TODAY);
+  for(let m=0;m<months;m++){
+    const yr=new Date(now.getFullYear(),now.getMonth()+m,1);
+    const mk=`${yr.getFullYear()}-${yr.getMonth()}`;
+    allEvs.filter(ev=>ev.monthKey===mk).forEach(ev=>{
+      if(ev.kind==='saving'){cash+=ev.amount;sav+=Math.abs(ev.amount);}
+      else cash+=ev.amount;
+    });
+    const showYear=m%12===0||m===0;
+    labels.push(yr.toLocaleDateString(S.language||'en',{month:'short',year:showYear?'numeric':undefined}));
+    cashData.push(Math.round(cash*10)/10);
+    savData.push(Math.round(sav*10)/10);
+    liqData.push(Math.round((cash+sav)*10)/10);
+  }
+
+  if(_chartInstance){_chartInstance.destroy();_chartInstance=null;}
+
+  const buf=calcBuffer();
+  _chartInstance=new Chart(canvas,{
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:t('chartCash')||'Cash',data:cashData,borderColor:'#c8f06e',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,tension:.3},
+        {label:t('chartSavings')||'Savings',data:savData,borderColor:'#6ef0c8',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,tension:.3},
+        {label:t('chartTotal')||'Total',data:liqData,borderColor:'#555',backgroundColor:'rgba(80,80,80,.07)',borderWidth:1,pointRadius:0,tension:.3,fill:true},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{labels:{color:'#888',font:{size:10},boxWidth:12,padding:8}},
+        tooltip:{backgroundColor:'#1e1e1e',titleColor:'#e8e8e0',bodyColor:'#888',borderColor:'#2a2a2a',borderWidth:1,
+          callbacks:{label:ctx=>`${ctx.dataset.label}: ${new Intl.NumberFormat('de-CH',{minimumFractionDigits:0,maximumFractionDigits:0}).format(ctx.parsed.y)} ${S.currency}`}
+        }
+      },
+      scales:{
+        x:{ticks:{color:'#555',font:{size:9},maxTicksLimit:_chartYears<=1?12:_chartYears<=5?20:30},grid:{color:'#1a1a1a'}},
+        y:{ticks:{color:'#555',font:{size:9},callback:v=>new Intl.NumberFormat('de-CH',{notation:'compact'}).format(v)+' '+S.currency},grid:{color:'#1a1a1a'}}
+      }
+    }
+  });
+
+  const finalCash=cashData[cashData.length-1];
+  const finalSav=savData[savData.length-1];
+  const finalLiq=liqData[liqData.length-1];
+  const statsEl=document.getElementById('chartStats');
+  if(statsEl) statsEl.innerHTML=
+    `<span style="color:var(--accent)">${t('chartCash')||'Cash'}</span>: ${fmtM(finalCash)} &nbsp;·&nbsp; `+
+    `<span style="color:var(--accent2)">${t('chartSavings')||'Savings'}</span>: ${fmtM(finalSav)} &nbsp;·&nbsp; `+
+    `<b style="color:var(--text)">${t('chartTotal')||'Total'}</b>: ${fmtM(finalLiq)}<br>`+
+    `<span style="color:var(--muted)">${t('chartIn')||'in'} ${_chartYears} ${_chartYears===1?(t('chartYear')||'year'):(t('chartYears')||'years')}</span>`;
+
+  ['1','5','20'].forEach(y=>{
+    const btn=document.getElementById(`chartBtn${y}y`);
+    if(btn)btn.style.color=String(_chartYears)===y?'var(--accent)':'';
+  });
+}
+
 function tab(t){
   ['Events','Savings','Goals','Whatif','Progress','Settings'].forEach(x=>{
     const el=document.getElementById('tab'+x);if(el)el.classList.toggle('active',x.toLowerCase()===t);
