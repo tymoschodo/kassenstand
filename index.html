@@ -365,7 +365,6 @@
       <div class="sb-h4" id="lblGoalTitle">New goal</div>
       <div class="fr"><label id="lblGoalName">Goal name</label><input class="fi" id="gN" placeholder="e.g. Emergency fund"/></div>
       <div class="fr"><label id="lblGoalTarget">Target</label><input class="fi" id="gT" type="number" step="100" placeholder="10000"/></div>
-      <div class="cbrow"><input type="checkbox" id="gUS" checked/><label for="gUS" id="lblGoalSav" style="font-size:.78rem;cursor:pointer">Include savings toward this goal</label></div>
       <button class="btn btn-a" style="width:100%" id="btnAddGoal" onclick="addGoal()">Add Goal</button>
       <div class="sb-h4" style="margin-top:1rem" id="lblGoalListTitle">Your goals</div>
       <div id="goalsList"></div>
@@ -972,7 +971,8 @@ function goalDate(goal,purchaseDateIso=null,purchaseCost=0){
     (byDay[k]||[]).forEach(ev=>{
       if(ev.kind==='saving'){cash+=ev.amount;sav+=Math.abs(ev.amount);}else cash+=ev.amount;
     });
-    const liq=goal.useSavings?cash+sav:cash;
+    const goalAlloc=(S.goalAllocations||{})[goal.id]||0;
+  const liq=cash+goalAlloc;
     if(liq-goal.target>=buf)return new Date(cur);
     cur.setDate(cur.getDate()+1);
   }
@@ -1326,7 +1326,9 @@ function renderGoals(){
   if(!S.goals.length){el.innerHTML=`<div style="color:var(--muted);font-size:.75rem;font-style:italic">${t('noGoals')}</div>`;return;}
   const curCash=computeCurrentCash();
   el.innerHTML=S.goals.map(g=>{
-    const cur=g.useSavings?curCash+S.savingsBalance:curCash;
+    // Progress = cash + amount specifically allocated to this goal
+    const goalAlloc=(S.goalAllocations||{})[g.id]||0;
+    const cur=curCash+goalAlloc;
     const pct=Math.min(100,Math.round(Math.max(0,cur)/g.target*100));
     const col=hColor(pct/100);
     const gd=goalDate(g);
@@ -1989,7 +1991,7 @@ function applyI18n(){
     'lblSrAmt':'amount','lblSrCur':'currency','btnAddSavRec':'addRecurringSav','lblSrListTitle':'recurringSavings',
     // Goals tab
     'lblGoalTitle':'newGoal','lblGoalName':'goalName','lblGoalTarget':'target',
-    'lblGoalSav':'includeGoalSav','btnAddGoal':'addGoal','lblGoalListTitle':'yourGoals',
+    'btnAddGoal':'addGoal','lblGoalListTitle':'yourGoals',
     // What-If tab
     'lblWITitle':'whatIfTitle','lblWIName':'purchaseName','lblWIDate':'purchaseDate',
     'lblWICost':'purchaseCost','btnWIRun':'simulate',
@@ -2450,9 +2452,9 @@ function addRec(kind){
   if(firstDate)_doAdd(doIt,firstDate,checkAmt,kind);else doIt();
 }
 function addGoal(){
-  const n=document.getElementById('gN').value.trim(),t=parseFloat(document.getElementById('gT').value),u=document.getElementById('gUS').checked;
+  const n=document.getElementById('gN').value.trim(),t=parseFloat(document.getElementById('gT').value);
   if(!n||isNaN(t)||t<=0){alert('Fill in all fields.');return;}
-  S.goals.push({id:'gl_'+Date.now(),name:n,target:t,useSavings:u});
+  S.goals.push({id:'gl_'+Date.now(),name:n,target:t,useSavings:false});
   document.getElementById('gN').value='';document.getElementById('gT').value='';
   persist();render();checkBadges();
 }
