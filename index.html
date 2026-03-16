@@ -235,8 +235,7 @@
         <div class="hstat"><strong id="hLiq">—</strong><span id="hLblLiq">total liquidity</span></div>
         <div class="hdiv"></div>
         <div class="hstat"><strong id="hBuf">—</strong><span id="hLblBuf">buffer</span> (<span id="hBufMode">—</span>)</div>
-        <div class="hdiv"></div>
-        <div class="hstat"><strong id="hDof" style="color:var(--accent2)">—</strong><span id="hLblDof">days of freedom</span></div>
+
         <div class="hdiv"></div>
         <div class="hstat"><strong id="hEnd">—</strong><span id="hLblEnd">cash in 12 mo</span></div>
       </div>
@@ -334,7 +333,7 @@
       <div class="fr" style="margin-top:.3rem">
         <label id="lblSavGoal">Allocate to</label>
         <select class="fi sav" id="seGoal">
-          <option value="security" id="seGoalSecurity">🛡 Security (buffer)</option>
+          <option value="security" id="seGoalSecurity">🛡 Financial Security</option>
         </select>
       </div>
       <button class="btn btn-b" style="width:100%;margin-top:.3rem" id="btnAddSavOne" onclick="addSavingOne()">Add Transfer</button>
@@ -353,7 +352,7 @@
       <div class="fr">
         <label id="lblSrGoal">Allocate to</label>
         <select class="fi sav" id="srGoal">
-          <option value="security" id="srGoalSecurity">🛡 Security (buffer)</option>
+          <option value="security" id="srGoalSecurity">🛡 Financial Security</option>
         </select>
       </div>
       <button class="btn btn-b" style="width:100%" id="btnAddSavRec" onclick="addRec('saving')">Add Recurring Saving</button>
@@ -478,7 +477,7 @@
     <div class="fr" id="addFundsGoalRow" style="display:none">
       <label id="addFundsGoalLabel">Allocate to</label>
       <select class="fi" id="addFundsGoal">
-        <option value="security" id="addFundsGoalSec">🛡 Security (buffer)</option>
+        <option value="security" id="addFundsGoalSec">🛡 Financial Security</option>
       </select>
     </div>
     <div id="addFundsPreview" style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--accent2);min-height:1.5rem;margin:.5rem 0;padding:.4rem .5rem;background:#0a1a10;border-radius:4px;display:none"></div>
@@ -1567,7 +1566,28 @@ function buildWizSteps(){return [
       <div class="wiz-feature"><div class="wiz-feature-icon">💱</div><div class="wiz-feature-text"><b>${t('wiz0F5')}</b> — ${t('wiz0F5d')}</div></div>
       <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);margin-top:.8rem;padding:.5rem .65rem;background:#111;border-radius:4px;border-left:2px solid var(--accent)">${t('wiz0Hint')}</div>`,
   },
-  // ─── STEP 1 ───
+  // ─── STEP 1 — Income profile ───
+  {
+    title:t('wizPTitle'),
+    sub:t('wizPSub'),
+    render:()=>`
+      <div style="display:flex;flex-direction:column;gap:.55rem">
+        ${['stable','regular','freelance'].map(pr=>`
+          <label style="display:flex;align-items:flex-start;gap:.75rem;padding:.75rem .85rem;border-radius:8px;cursor:pointer;border:2px solid ${(S.incomeProfile||'regular')===pr?'var(--accent)':'var(--border)'};background:${(S.incomeProfile||'regular')===pr?'#111e05':'var(--surface2)'};transition:all .15s" onclick="wizSetProfile('${pr}')">
+            <div style="margin-top:.1rem;font-size:1.3rem">${{'stable':'💼','regular':'📅','freelance':'🎯'}[pr]}</div>
+            <div>
+              <div style="font-weight:600;font-size:.88rem;margin-bottom:.18rem">${t('wizP_'+pr)}</div>
+              <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);line-height:1.5">${t('wizP_'+pr+'_desc')}</div>
+            </div>
+          </label>`).join('')}
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-top:.75rem;line-height:1.6;padding:.4rem .55rem;background:#111;border-radius:4px">
+        ${t('wizPHint')}
+      </div>`,
+    onNext:()=>{},
+  },
+
+  // ─── STEP 2 — Balance ───
   {
     title:t('wiz1Title'),
     sub:t('wiz1Sub'),
@@ -1615,7 +1635,9 @@ function buildWizSteps(){return [
         <div id="wizExpenseList">${items.map((it,i)=>wizExpenseRow(it,i)).join('')}</div>
         <button class="btn btn-g" style="width:100%;margin-top:.5rem;font-size:.7rem" onclick="wizAddExpense()">${t('wiz3Add')}</button>
         <div style="margin-top:.8rem;padding:.5rem .65rem;background:#1a1208;border:1px solid #3a2a10;border-radius:4px;font-family:'DM Mono',monospace;font-size:.68rem;color:var(--orange)">
-          ${t('wiz3Confirm')}</div>`;
+          ${t('wiz3Confirm')}</div>
+        <div style="margin-top:.6rem;padding:.5rem .65rem;background:#0a0f1a;border:1px solid #1a2a40;border-radius:4px;font-family:'DM Mono',monospace;font-size:.65rem;color:var(--accent2);line-height:1.6">
+          💡 ${t('wiz3GoalsHint')}</div>`;
     },
     onNext:()=>{ window._wizExpenses=wizReadExpenses(); },
   },
@@ -2038,7 +2060,7 @@ function updateFxStatus(result){
 // ══════════════════════════════
 function populateGoalDropdowns(){
   // Build options: security + all goals
-  const opts=['<option value="security">🛡 '+(t('security')||'Security')+' ('+t('healthBuffer'||'buffer')+')</option>']
+  const opts=['<option value="security">🛡 '+(t('financialSecurity')||'Financial Security')+'</option>']
     .concat((S.goals||[]).map(g=>`<option value="${g.id}">🎯 ${escH(g.name)}</option>`))
     .join('');
   ['seGoal','srGoal','addFundsGoal'].forEach(id=>{
