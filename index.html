@@ -91,7 +91,7 @@
     .amt-inp:focus{outline:1px solid var(--accent);}
     .txbal{font-family:'DM Mono',monospace;font-size:.75rem;text-align:right;}
     .txact{display:flex;justify-content:flex-end;opacity:0;transition:opacity .1s;}
-    .pos{color:var(--accent2);}.neg{color:var(--red);}.negbal{color:var(--red);}
+    .pos{color:var(--accent2);}.neg{color:var(--red);}.negbal{color:var(--red);}.warnbal{color:var(--orange);}
     .nudge-row{padding:.28rem 1.6rem .42rem;background:#09120f;border-bottom:1px solid #181818;}
     .nudge{background:#0d1a17;border:1px solid #1a3530;border-radius:4px;padding:.3rem .6rem;font-size:.68rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;color:var(--muted);}
     .nudge b{color:var(--text);}
@@ -208,10 +208,16 @@
     .prog-label{font-size:.62rem;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.3rem;}
 
     .empty{padding:2rem 1.6rem;color:var(--muted);font-size:.78rem;font-style:italic;}
+    .mono-sm{font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);}
+    .mono-xs{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);}
+    .mono-label{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+    .flex-sb{display:flex;justify-content:space-between;align-items:center;}
+    .wi-summary-row{display:flex;justify-content:space-between;padding:.22rem 0;border-bottom:1px solid #1a1a1a;}
     ::-webkit-scrollbar{width:5px;}
     ::-webkit-scrollbar-track{background:transparent;}
     ::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:3px;}
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -227,6 +233,8 @@
         <div class="hstat"><strong id="hLiq">—</strong><span id="hLblLiq">total liquidity</span></div>
         <div class="hdiv"></div>
         <div class="hstat"><strong id="hBuf">—</strong><span id="hLblBuf">buffer</span> (<span id="hBufMode">—</span>)</div>
+        <div class="hdiv"></div>
+        <div class="hstat"><strong id="hDof" style="color:var(--accent2)">—</strong><span id="hLblDof">days of freedom</span></div>
         <div class="hdiv"></div>
         <div class="hstat"><strong id="hEnd">—</strong><span id="hLblEnd">cash in 12 mo</span></div>
       </div>
@@ -270,6 +278,7 @@
       <div class="tab" id="tabBtnGoals" onclick="tab('goals')">Goals</div>
       <div class="tab" id="tabBtnWhatif" onclick="tab('whatif')">What-If</div>
       <div class="tab" id="tabBtnProgress" onclick="tab('progress')">🏆</div>
+      <div class="tab" id="tabBtnChart" onclick="tab('chart')">📈</div>
       <div class="tab" id="tabBtnSettings" onclick="tab('settings')" style="font-size:1.1rem">⚙</div>
     </div>
 
@@ -367,6 +376,22 @@
       <div id="badgeGrid"></div>
     </div>
 
+    <!-- CHART -->
+    <div class="sb-body" id="tabChart">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem">
+        <div class="sb-h3" id="lblChartTitle" style="margin:0">Projection</div>
+        <div style="display:flex;gap:.3rem;align-items:center">
+          <button class="btn btn-g" id="chartBtn1y" onclick="renderChart(1)" style="font-size:.6rem;padding:.2rem .5rem">1Y</button>
+          <button class="btn btn-g" id="chartBtn5y" onclick="renderChart(5)" style="font-size:.6rem;padding:.2rem .5rem">5Y</button>
+          <button class="btn btn-g" id="chartBtn20y" onclick="renderChart(20)" style="font-size:.6rem;padding:.2rem .5rem">20Y</button>
+        </div>
+      </div>
+      <div style="position:relative;height:200px;margin-bottom:1rem">
+        <canvas id="projChart"></canvas>
+      </div>
+      <div id="chartStats" style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);line-height:1.8"></div>
+    </div>
+
     <!-- SETTINGS -->
     <div class="sb-body" id="tabSettings">
       <div class="sb-h3" id="settTitle">Settings</div>
@@ -412,7 +437,10 @@
         </label>
       </div>
       <div class="sb-h4" style="margin-top:1rem" id="settCurBufLabel">Current buffer</div>
-      <div id="bufDisplay" style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--accent2);padding:.3rem 0"></div>
+      <div style="display:flex;align-items:baseline;gap:1rem;padding:.3rem 0">
+        <div id="bufDisplay" style="font-family:'DM Mono',monospace;font-size:.85rem;color:var(--accent2)"></div>
+        <div id="bufDofDisplay" style="font-family:'DM Mono',monospace;font-size:.72rem;color:var(--muted)"></div>
+      </div>
 
       <div class="sb-h4" style="margin-top:1.2rem" id="settDataLabel">Data</div>
       <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-bottom:.6rem" id="settDataDesc">Export your data as a backup file, or import a previously exported file.</div>
@@ -473,7 +501,7 @@
     <button class="btn btn-g" style="width:100%;margin:.5rem 0;font-size:.7rem" onclick="balCalcAddRow()">+ Add account</button>
     <div style="border-top:1px solid var(--border);margin:.6rem 0"></div>
     <div style="display:flex;justify-content:space-between;align-items:center;padding:.3rem 0">
-      <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted)" id="balCalcTotalLabel">Total</div>
+      <div class="mono-sm" id="balCalcTotalLabel">Total</div>
       <div style="font-family:'DM Serif Display',serif;font-size:1.4rem;letter-spacing:-.03em" id="balCalcTotal">—</div>
     </div>
     <div class="modal-btns" style="margin-top:.6rem">
@@ -996,6 +1024,39 @@ function render(){
   const bufModeLabel={a:t('withIncome'),b:t('noInc'),c:t('twoMo')}[S.bufferMode||'c'];
   document.getElementById('hBufMode').textContent=bufModeLabel;
   document.getElementById('bufDisplay').textContent=fmtM(buf);
+
+  // Days of Freedom: how many days can we cover outflows from current liq
+  const dofEl=document.getElementById('hDof');
+  if(dofEl){
+    const liqNow=autoCash+autoSav;
+    let dof=0;
+    if(liqNow>0){
+      // scan forward day by day until liq exhausted
+      let rem=liqNow;
+      const dayEvs={};
+      evs.forEach(ev=>{if(ev.amount<0){const k=isoOf(ev.date);(dayEvs[k]||(dayEvs[k]=[])).push(ev);}});
+      const cur=new Date(TODAY);
+      const maxDays=365*20;
+      for(let d=0;d<maxDays;d++){
+        const k=isoOf(cur);
+        (dayEvs[k]||[]).forEach(ev=>{rem+=ev.amount;});
+        if(rem<=0)break;
+        dof=d+1;
+        cur.setDate(cur.getDate()+1);
+      }
+      if(dof>=365*20)dof='∞';
+    }
+    dofEl.textContent=dof==='∞'?'∞':(dof+'d');
+    const dofColor=typeof dof==='string'?'var(--accent2)':dof<30?'var(--red)':dof<90?'var(--orange)':'var(--accent2)';
+    dofEl.style.color=dofColor;
+  }
+
+  // Dynamic cash color: red/orange if cash < buffer
+  const cashEl=document.getElementById('hCash');
+  const dCashEl=document.getElementById('dCash');
+  const cashColor=autoCash<0?'var(--red)':autoCash<buf?'var(--orange)':'var(--accent)';
+  if(cashEl)cashEl.style.color=cashColor;
+  if(dCashEl)dCashEl.style.color=cashColor;
   if(document.getElementById('settName'))document.getElementById('settName').value=S.userName||'';
   applyI18n();
 
@@ -1069,7 +1130,7 @@ function render(){
                   onchange="updAmt('${ev.id}','${ev.type}','${ev.recurringId||''}',parseFloat(this.value),'${ev.instanceDate||''}')"/>`
             }
           </div>
-          <div class="txbal ${balCls}">${fmtM(cash)}</div>
+          <div class="txbal ${cash<0?'negbal':cash<buf?'warnbal':balCls}">${fmtM(cash)}</div>
           <div class="txact"><button class="xbtn" onclick="delEv('${ev.id}','${ev.type}','${ev.recurringId||''}','${ev.instanceDate||''}')">✕</button></div>
         </div>
         ${showNudge&&nudgeAmt>0?`<div class="nudge-row"><div class="nudge">
@@ -1103,6 +1164,43 @@ function render(){
 
   // ── Global buffer violation baner ──
   const baner=buildBaner(evs,autoCash,autoSav,buf);
+  // ── Yearly blocks (years 2-20, collapsed by default) ──
+  const years=getYears();
+  years.forEach(yr=>{
+    let yCash=cash,ySav=sav,yInc=0,yExp=0;
+    for(let m=0;m<12;m++){
+      S.recurring.forEach(rec=>{
+        const last=new Date(yr,m+1,0).getDate();
+        const day=Math.min(rec.day,last);
+        const excKey=`${yr}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        if((S.recurringExceptions[rec.id]||[]).includes(new Date(yr,m,day).toISOString().split('T')[0]))return;
+        const amt=rec.kind==='saving'?-Math.abs(rec.amount):rec.amount;
+        if(rec.kind==='saving'){yCash+=amt;ySav+=Math.abs(amt);}
+        else{yCash+=amt;if(amt<0)yExp+=Math.abs(amt);else yInc+=amt;}
+      });
+    }
+    cash=yCash;sav=ySav;
+    const ec2=cash<0?'var(--red)':cash<buf?'var(--orange)':'var(--accent2)';
+    html+=`<div class="month-block">
+      <div class="month-hdr">
+        <div class="mdot" style="background:var(--border)"></div>
+        <span style="color:var(--muted);font-size:.95rem">${yr}</span>
+        <div class="month-right" style="gap:.6rem">
+          <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted)">+${fmtM(yInc)} / -${fmtM(yExp)}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:.65rem;color:${ec2}">${t('cash')||'cash'} ${fmtM(cash)}</span>
+          <span style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--accent2)">${t('totalLiq')||'liq'} ${fmtM(cash+sav)}</span>
+        </div>
+      </div>
+    </div>`;
+  });
+
+  // ── Show more / show less ──
+  const curY=S._timelineYears||0;
+  html+=`<div style="padding:.9rem 1.6rem;text-align:center;border-top:1px solid var(--border)">
+    ${curY<20?`<button class="btn btn-g" style="font-size:.65rem" onclick="S._timelineYears=Math.min(20,(S._timelineYears||0)+5);persist();render()">${t('showMoreYears')||'+ 5 years'} ▾</button>`:''}
+    ${curY>0?`<button class="btn btn-g" style="font-size:.65rem;margin-left:.5rem" onclick="S._timelineYears=0;persist();render()">${t('showLessYears')||'Hide years'} ▴</button>`:''}
+  </div>`;
+
   document.getElementById('mainPanel').innerHTML=(baner?baner:'')+html;
   renderRecLists();
   renderGoals();
@@ -1137,18 +1235,29 @@ function renderGoals(){
     const col=hColor(pct/100);
     const gd=goalDate(g);
     const dtS=gd?gd.toLocaleDateString('en-CH',{day:'numeric',month:'short',year:'numeric'}):'Beyond 12-month window';
+    const r=26,circ=(2*Math.PI*r).toFixed(1);
+    const dash=Math.min(pct/100,1)*2*Math.PI*r;
+    const offset=(2*Math.PI*r/4).toFixed(1);
     return `<div class="gcard">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.3rem">
-        <div class="gname">${escH(g.name)}</div>
-        <button class="xbtn" onclick="delGoal('${g.id}')">✕</button>
-      </div>
-      <div style="font-family:'DM Mono',monospace;font-size:.63rem;color:var(--muted);margin-bottom:.18rem">
-        ${fmtM(cur)} / ${fmtM(g.target)} &nbsp;·&nbsp; ${g.useSavings?'cash + savings':'cash only'}
-      </div>
-      <div class="gbar-bg"><div class="gbar-fill" style="width:${pct}%;background:${col}"></div></div>
-      <div class="gmeta">
-        <span style="color:${col}">${pct}%</span>
-        <span style="color:var(--accent2)">🎯 ${dtS}</span>
+      <div style="display:flex;align-items:center;gap:.8rem">
+        <svg width="64" height="64" viewBox="0 0 64 64" style="flex-shrink:0">
+          <circle cx="32" cy="32" r="${r}" fill="none" stroke="#222" stroke-width="5"/>
+          <circle cx="32" cy="32" r="${r}" fill="none" stroke="${col}" stroke-width="5"
+            stroke-dasharray="${dash.toFixed(1)} ${circ}"
+            stroke-dashoffset="${offset}" stroke-linecap="round"/>
+          <text x="32" y="37" text-anchor="middle" fill="${col}"
+            font-family="DM Mono,monospace" font-size="11" font-weight="500">${pct}%</text>
+        </svg>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.3rem;margin-bottom:.2rem">
+            <div class="gname">${escH(g.name)}</div>
+            <button class="xbtn" onclick="delGoal('${g.id}')">✕</button>
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.6">
+            ${fmtM(cur)} / ${fmtM(g.target)}<br>
+            <span style="color:var(--accent2)">🎯 ${dtS}</span>
+          </div>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1190,6 +1299,26 @@ function updateBufUI(){
   });
   const checked=document.querySelector(`.buf-opt input[value="${S.bufferMode||'c'}"]`);
   if(checked)checked.checked=true;
+  // Show DoF in settings
+  const dofDisp=document.getElementById('bufDofDisplay');
+  if(dofDisp){
+    const evs=genEvents();
+    const liq=computeCurrentCash()+S.savingsBalance;
+    let rem=liq,dof=0;
+    const dayEvs={};
+    evs.forEach(ev=>{if(ev.amount<0){const k=isoOf(ev.date);(dayEvs[k]||(dayEvs[k]=[])).push(ev);}});
+    const cur=new Date(TODAY);
+    for(let d=0;d<365*20;d++){
+      const k=isoOf(cur);
+      (dayEvs[k]||[]).forEach(ev=>{rem+=ev.amount;});
+      if(rem<=0)break;
+      dof=d+1;
+      cur.setDate(cur.getDate()+1);
+    }
+    const dofStr=dof>=365*20?'∞':(dof+'d');
+    const dofColor=dof>=365*20?'var(--accent2)':dof<30?'var(--red)':dof<90?'var(--orange)':'var(--accent2)';
+    dofDisp.innerHTML=`<span style="color:${dofColor}">${dofStr}</span> ${t('daysOfFreedom')||'days of freedom'}`;
+  }
 }
 
 // ══════════════════════════════
@@ -1223,12 +1352,22 @@ function runWI(){
   const col=hColor(ratio);
   const scoreLabel=ratio>=1?'Safe':ratio>=0.75?'Good':ratio>=0.5?'Caution':ratio>=0.25?'Risky':'Danger';
 
+  // Buffer-specific verdict — how much does it violate the buffer?
+  const bufModeName={a:'A (with income)',b:'B (30 days)',c:'C (90 days)'}[S.bufferMode||'c'];
+  const bufViolation=buf-liqAfter;
   let verdict,verdictCol;
-  if(liqAfter<buf){verdict=`✗ Not recommended. Liquidity after (${fmtM(liqAfter)}) falls below your buffer (${fmtM(buf)}).`;verdictCol='var(--red)';}
-  else if(ratio>=1){verdict=`✓ Safe. This fits within your monthly surplus — your safety net is untouched.`;verdictCol='var(--accent2)';}
-  else if(ratio>=0.75){verdict=`~ Good. You remain above your buffer, dipping slightly into your float.`;verdictCol='#c8f06e';}
-  else if(ratio>=0.5){verdict=`⚠ Caution. Above the floor, but close. Avoid unexpected expenses this period.`;verdictCol='var(--orange)';}
-  else{verdict=`⚠ Risky. Very close to your safety floor. One unexpected cost could cause trouble.`;verdictCol='var(--orange)';}
+  if(liqAfter<buf){
+    verdict=`✗ ${t('wiBufferViolation')||'You can afford this, but it breaks your'} ${bufModeName} buffer ${t('wiBy')||'by'} <b style="color:var(--red)">${fmtM(bufViolation)}</b>. ${t('wiStillBuy')||'Buy anyway?'}`;
+    verdictCol='var(--red)';
+  } else if(ratio>=1){
+    verdict=`✓ ${t('wiSafe')||'Safe. Fits within your monthly surplus — buffer untouched.'}`;verdictCol='var(--accent2)';
+  } else if(ratio>=0.75){
+    verdict=`~ ${t('wiGood')||'Good. Buffer intact, dipping slightly into float.'}`;verdictCol='#c8f06e';
+  } else if(ratio>=0.5){
+    verdict=`⚠ ${t('wiCaution')||'Caution. Above buffer floor, but close. Avoid surprises this period.'}`;verdictCol='var(--orange)';
+  } else {
+    verdict=`⚠ ${t('wiRisky')||'Risky. Very close to buffer floor. One unexpected cost could cause trouble.'}`;verdictCol='var(--orange)';
+  }
 
   let savNote='';
   if(cashShortfall){savNote=`<div style="background:#1a100a;border:1px solid #3a2010;border-radius:4px;padding:.45rem .6rem;margin-top:.45rem;font-family:'DM Mono',monospace;font-size:.65rem;color:var(--orange)">⚠ Not enough cash even drawing all savings (${fmtM(sav)}). Shortfall: ${fmtM(liqAfter)}.</div>`;}
@@ -1275,10 +1414,11 @@ function runWI(){
     </div>
     <div style="font-size:.76rem;line-height:1.5;color:${verdictCol};padding:.38rem .5rem;background:#111;border-radius:4px;border-left:2px solid ${verdictCol};margin-bottom:.4rem">${verdict}</div>
     <div class="wi-det">
-      <b>Liquidity before:</b> ${fmtM(liqBefore)}<br>
-      <b>Liquidity after:</b> <span style="color:${col}">${fmtM(liqAfter)}</span><br>
-      <b>Buffer:</b> ${fmtM(buf)} &nbsp;·&nbsp; <b>Surplus:</b> ${fmtM(surplus)}<br>
-      <b>Score:</b> <span style="color:${col}">${Math.round(ratio*100)}%</span>
+      <b>${t('wiLiqBefore')||'Liquidity before'}:</b> ${fmtM(liqBefore)}<br>
+      <b>${t('wiLiqAfter')||'Liquidity after'}:</b> <span style="color:${col}">${fmtM(liqAfter)}</span><br>
+      <b>${t('wiBuffer')||'Buffer'}:</b> ${fmtM(buf)} (${bufModeName}) &nbsp;·&nbsp; <b>${t('wiSurplusLbl')||'Surplus'}:</b> ${fmtM(surplus)}<br>
+      ${liqAfter<buf?`<b style="color:var(--red)">${t('wiBufferShort')||'Buffer shortfall'}:</b> <span style="color:var(--red)">${fmtM(bufViolation)}</span><br>`:''}
+      <b>${t('wiScore')||'Score'}:</b> <span style="color:${col}">${Math.round(ratio*100)}%</span>
     </div>
     ${savNote}${goalWarn}${goalsHtml}
     <div style="margin-top:.65rem;padding-top:.55rem;border-top:1px solid var(--border)">
@@ -1440,19 +1580,19 @@ function buildWizSteps(){return [
       return `
         <div style="font-family:'DM Mono',monospace;font-size:.72rem;margin-bottom:.8rem">
           <div style="color:var(--muted);font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">${t('wiz5Summary')}</div>
-          ${incOk.length?incOk.map(i=>`<div style="display:flex;justify-content:space-between;padding:.22rem 0;border-bottom:1px solid #1a1a1a">
+          ${incOk.length?incOk.map(i=>`<div class="wi-summary-row">
             <span style="color:var(--text)">📈 ${escH(i.name)}</span>
             <span style="color:var(--accent2)">+${fmtM(parseFloat(i.amount))}</span>
           </div>`).join(''):`<div style="color:var(--muted);font-style:italic;padding:.3rem 0">${t('wiz5NoIncome')}</div>`}
-          ${expOk.map(e=>`<div style="display:flex;justify-content:space-between;padding:.22rem 0;border-bottom:1px solid #1a1a1a">
+          ${expOk.map(e=>`<div class="wi-summary-row">
             <span style="color:var(--text)">🏠 ${escH(e.name)}</span>
             <span style="color:var(--red)">−${fmtM(parseFloat(e.amount))}</span>
           </div>`).join('')}
-          ${sM>0?`<div style="display:flex;justify-content:space-between;padding:.22rem 0;border-bottom:1px solid #1a1a1a">
+          ${sM>0?`<div class="wi-summary-row">
             <span style="color:var(--text)">${t('wiz5SuperMo')}</span>
             <span style="color:var(--red)">−${fmtM(sM)}</span>
           </div>`:''}
-          ${fM>0?`<div style="display:flex;justify-content:space-between;padding:.22rem 0;border-bottom:1px solid #1a1a1a">
+          ${fM>0?`<div class="wi-summary-row">
             <span style="color:var(--text)">${t('wiz5FunMo')}</span>
             <span style="color:var(--red)">−${fmtM(fM)}</span>
           </div>`:''}
@@ -1507,13 +1647,13 @@ function wizLifeConfirmHtml(sW,fW,sM,fM){
       <span style="font-size:.75rem;color:var(--text);min-width:130px">🛒 Supermarket</span>
       <span style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted)">${sWv} × 4.33 ≈</span>
       <input class="wiz-inp" id="wizSuperM" type="number" step="1" value="${sMv}" style="width:80px;font-size:.8rem;padding:.25rem .4rem"/>
-      <span style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted)">${t('wiz4PerMonth')}</span>
+      <span class="mono-sm">${t('wiz4PerMonth')}</span>
     </div>`:''}
     ${fWv>0?`<div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
       <span style="font-size:.75rem;color:var(--text);min-width:130px">🎉 Fun & Leisure</span>
       <span style="font-family:'DM Mono',monospace;font-size:.7rem;color:var(--muted)">${fWv} × 4.33 ≈</span>
       <input class="wiz-inp" id="wizFunM" type="number" step="1" value="${fMv}" style="width:80px;font-size:.8rem;padding:.25rem .4rem"/>
-      <span style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted)">${t('wiz4PerMonth')}</span>
+      <span class="mono-sm">${t('wiz4PerMonth')}</span>
     </div>`:''}
     <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:.5rem">${t('wiz4ManualNote')}</div>
   </div>`;
@@ -1684,11 +1824,7 @@ function applyI18n(){
   const ids={
     'lblCash':'currentCash','lblSav':'currentSav',
     'btnUpdateCash':'update','btnUpdateSav':'update',
-    'balHintText':'autoCalc','balHintSavText':'autoCalcSav',
-    'btnManualCash':'enterManually','btnManualSav':'enterManually',
-    'calcCashLbl':'setBalance','calcSavLbl':'setBalance',
-    'addFundsLbl':'addFundsShort','addFundsSavLbl':'addFundsShort',
-    'balCalcHint':'calcHint','balCalcAddBtn':'calcAddAccount','balCalcTotalLabel':'calcTotal','balCalcCancelBtn':'cancel',
+    'balCalcHint':'calcHint','balCalcTotalLabel':'calcTotal','balCalcCancelBtn':'cancel',
     'settTitle':'settingsTitle','settLangLabel':'language',
     'settCurLabel':'baseCurrency','settNameLabel':'yourName',
     'settNameBtn':'saveName','settBufLabel':'healthBuffer',
@@ -1710,6 +1846,8 @@ function applyI18n(){
     // What-If tab
     'lblWITitle':'whatIfTitle','lblWIName':'purchaseName','lblWIDate':'purchaseDate',
     'lblWICost':'purchaseCost','btnWIRun':'simulate',
+    'hLblDof':'daysOfFreedom','lblChartTitle':'lblChartTitle',
+    'tabBtnChart':'tabChart',
     // Progress tab
     'lblBadgesTitle':'badgesTitle',
     'addFundsTitle':'addFundsTitle','addFundsAmtLabel':'addFundsAmount',
@@ -2143,11 +2281,16 @@ function adjSaving(id,type,rid,currentAbs,reduceBy){updAmt(id,type,rid,-(current
 // TABS
 // ══════════════════════════════
 function tab(t){
-  ['Events','Savings','Goals','Whatif','Progress','Settings'].forEach(x=>{document.getElementById('tab'+x).classList.toggle('active',x.toLowerCase()===t);});
-  document.querySelectorAll('.tab').forEach((el,i)=>{el.classList.toggle('active',['events','savings','goals','whatif','progress','settings'][i]===t);});
+  ['Events','Savings','Goals','Whatif','Progress','Chart','Settings'].forEach(x=>{
+    const el=document.getElementById('tab'+x);if(el)el.classList.toggle('active',x.toLowerCase()===t);
+  });
+  document.querySelectorAll('.tab').forEach((el,i)=>{
+    el.classList.toggle('active',['events','savings','goals','whatif','progress','chart','settings'][i]===t);
+  });
   if(t==='goals')renderGoals();
   if(t==='progress')renderProgress();
   if(t==='settings')updateBufUI();
+  if(t==='chart')setTimeout(()=>renderChart(_chartYears),50);
 }
 
 // ══════════════════════════════
