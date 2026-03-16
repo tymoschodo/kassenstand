@@ -1038,6 +1038,28 @@ function render(){
     dofEl.style.color=dofColor;
   }
 
+  // "Do dyspozycji" — profile-aware horizon
+  const availEl=document.getElementById('hAvail');
+  if(availEl){
+    const profile=S.incomeProfile||'regular';
+    // regular/variable: end of current month; project: 30 rolling days
+    const horizon=profile==='project'
+      ?new Date(TODAY.getFullYear(),TODAY.getMonth(),TODAY.getDate()+30)
+      :new Date(TODAY.getFullYear(),TODAY.getMonth()+1,0);
+    let expH=0,incH=0;
+    evs.forEach(ev=>{
+      if(ev.date<TODAY||ev.date>horizon||ev.kind==='saving')return;
+      if(ev.amount<0)expH+=Math.abs(ev.amount);
+      else incH+=ev.amount;
+    });
+    const netOutflow=Math.max(0,expH-incH);
+    const available=Math.round((autoCash-netOutflow-buf)*100)/100;
+    const availColor=available<=0?'var(--red)':available<buf*0.25?'var(--orange)':'var(--accent)';
+    availEl.textContent=available>0?fmtM(available):'—';
+    availEl.style.color=availColor;
+    window._availData={amount:available,expH,incH,horizon,profile};
+  }
+
   // Dynamic cash color: red/orange if cash < buffer
   const cashEl=document.getElementById('hCash');
   const dCashEl=document.getElementById('dCash');
@@ -1767,25 +1789,25 @@ function wizMagicGenerate(){
   const buf=calcBuffer(evs);
   const currentCash=computeCurrentCash();
   const liq=currentCash+S.savingsBalance;
-  const nextIncome=evs.find(ev=>ev.date>TODAY&&ev.amount>0&&ev.kind!=='saving');
-  const cutoff=nextIncome?nextIncome.date:null;
-  let expUntil=0;
+  // End of current month horizon
+  const wEOM=new Date(TODAY.getFullYear(),TODAY.getMonth()+1,0);
+  let wExpM=0,wIncM=0;
   evs.forEach(ev=>{
-    if(ev.date<TODAY)return;
-    if(cutoff&&ev.date>=cutoff)return;
-    if(ev.amount<0&&ev.kind!=='saving')expUntil+=Math.abs(ev.amount);
+    if(ev.date<TODAY||ev.date>wEOM||ev.kind==='saving')return;
+    if(ev.amount<0)wExpM+=Math.abs(ev.amount);
+    else wIncM+=ev.amount;
   });
-  const available=Math.round((currentCash-expUntil-buf)*100)/100;
-  const cutoffStr=cutoff?cutoff.toLocaleDateString(undefined,{day:'numeric',month:'long'}):null;
+  const wNet=Math.max(0,wExpM-wIncM);
+  const available=Math.round((currentCash-wNet-buf)*100)/100;
 
   setTimeout(()=>{
     const msg=available>0
       ? `<div style="text-align:center;padding:1.2rem 1rem">
           <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">${t('safeToSpendLabel')||'Do dyspozycji'}</div>
           <div style="font-family:'DM Serif Display',serif;font-size:2.2rem;color:var(--accent);letter-spacing:-.03em;margin-bottom:.25rem">${fmtM(available)}</div>
-          <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.6">
-            ${cutoffStr?`${t('safeToSpendUntil')||'do'} <b style="color:var(--text)">${cutoffStr}</b> · `:''}${t('safeToSpendSub')||'po uwzględnieniu wydatków, bufor chroniony'}<br>
-            ${t('bufferLabel')||'bufor'}: ${fmtM(buf)}
+          <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);line-height:1.7">
+            ${t('thisMonth')||'ten miesiąc'}: −${fmtM(wExpM)} / +${fmtM(wIncM)}<br>
+            ${t('safeToSpendSub')||'po wydatkach, bufor chroniony'} (${fmtM(buf)})
           </div>
         </div>`
       : `<div style="text-align:center;padding:1.2rem 1rem">
