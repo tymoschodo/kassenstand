@@ -27,7 +27,7 @@
     .help-btn:hover{color:var(--text);border-color:#555;}
 
     /* BALANCE BAR */
-    .bal-bar{padding:.85rem 1.6rem;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:2.5rem;flex-shrink:0;align-items:flex-end;flex-wrap:wrap;}
+    .bal-bar{padding:.75rem 1.6rem;background:var(--bg);border-bottom:1px solid var(--border);display:flex;gap:2rem;flex-shrink:0;align-items:flex-end;flex-wrap:wrap;}
     .bal-block{display:flex;flex-direction:column;}
     .bal-lbl{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:.1rem;}
     .bal-amt{font-family:'DM Serif Display',serif;font-size:2rem;letter-spacing:-.04em;line-height:1;}
@@ -57,7 +57,8 @@
     .tab:hover:not(.active){color:var(--text);}
 
     /* LAYOUT */
-    .app-body{display:flex;flex:1;overflow:hidden;}
+    .app-wrap{display:flex;flex:1;overflow:hidden;}
+    .left-col{display:flex;flex-direction:column;flex:1;overflow:hidden;}
     .main-panel{flex:1;overflow-y:auto;overflow-x:hidden;}
 
     /* MONTH BLOCKS */
@@ -96,7 +97,7 @@
     .nudge b{color:var(--text);}
 
     /* SIDEBAR */
-    .sidebar{width:420px;border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;}
+    .sidebar{width:390px;border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;}
     .sb-body{padding:1.5rem 1.5rem;display:none;}
     .sb-body.active{display:block;}
     .sb-h3{font-family:'DM Serif Display',serif;font-size:1.15rem;margin-bottom:1rem;}
@@ -104,7 +105,7 @@
     .sb-h4:first-child{margin-top:0;border-top:none;padding-top:0;}
     .fr{margin-bottom:.65rem;}
     .fr label{display:block;font-size:.68rem;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.32rem;}
-    .fi{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:.95rem;padding:.5rem .7rem;border-radius:5px;}
+    .fi{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'Instrument Sans',sans-serif;font-size:.85rem;padding:.42rem .6rem;border-radius:5px;}
     .fi:focus{outline:1px solid var(--accent);}.fi.sav:focus{outline:1px solid var(--accent2);}
     .firow{display:flex;gap:.55rem;margin-bottom:.65rem;}
     .firow .fr{flex:1;margin-bottom:0;}
@@ -233,34 +234,35 @@
   </div>
 </header>
 
-<div class="bal-bar">
-  <div class="bal-block">
-    <div class="bal-lbl" id="lblCash">Current Cash Balance</div>
-    <div class="bal-amt ca" id="dCash">—</div>
-    <div class="bal-irow">
-      <input class="bal-inp" id="iCash" type="number" step="0.01" placeholder="0.00"/>
-      <button class="btn btn-a" id="btnUpdateCash" onclick="setBal('cash')">Update</button>
-      <button class="btn btn-g" id="btnCalcCash" onclick="showBalCalc('cash')" style="margin-left:.3rem" title="Calculate from multiple accounts">∑</button>
-      <button class="btn btn-g" id="btnAddFunds" onclick="showAddFunds('cash')" style="margin-left:.3rem">+ Add Funds</button>
-      <span class="sind" id="sind"></span>
+<div class="app-wrap">
+  <div class="left-col">
+    <div class="bal-bar">
+      <div class="bal-block">
+        <div class="bal-lbl" id="lblCash">Current Cash Balance</div>
+        <div class="bal-amt ca" id="dCash">—</div>
+        <div class="bal-irow">
+          <input class="bal-inp" id="iCash" type="number" step="0.01" placeholder="0.00"/>
+          <button class="btn btn-a" id="btnUpdateCash" onclick="setBal('cash')">Update</button>
+          <button class="btn btn-g" id="btnCalcCash" onclick="showBalCalc('cash')" style="margin-left:.3rem" title="Calculate from multiple accounts">∑</button>
+          <button class="btn btn-g" id="btnAddFunds" onclick="showAddFunds('cash')" style="margin-left:.3rem">+ Add Funds</button>
+          <span class="sind" id="sind"></span>
+        </div>
+        <div class="bal-hint" id="balHint">Auto-calculated from your starting balance + past events</div>
+      </div>
+      <div class="bal-block">
+        <div class="bal-lbl" id="lblSav">Current Savings Balance</div>
+        <div class="bal-amt sa" id="dSav">—</div>
+        <div class="bal-irow">
+          <input class="bal-inp sav" id="iSav" type="number" step="0.01" placeholder="0.00"/>
+          <button class="btn btn-b" id="btnUpdateSav" onclick="setBal('sav')">Update</button>
+          <button class="btn btn-g" id="btnCalcSav" onclick="showBalCalc('sav')" style="margin-left:.3rem" title="Calculate from multiple accounts">∑</button>
+          <button class="btn btn-g" id="btnAddFundsSav" onclick="showAddFunds('sav')" style="margin-left:.3rem">+ Add Funds</button>
+        </div>
+        <div class="bal-hint" id="balHintSav">Auto-calculated · Update if reality differs</div>
+      </div>
     </div>
-    <div class="bal-hint" id="balHint">Auto-calculated from your starting balance + past events</div>
+    <div class="main-panel" id="mainPanel"><div class="empty">Welcome! Click <b>? Guide</b> to get started.</div></div>
   </div>
-  <div class="bal-block">
-    <div class="bal-lbl" id="lblSav">Current Savings Balance</div>
-    <div class="bal-amt sa" id="dSav">—</div>
-    <div class="bal-irow">
-      <input class="bal-inp sav" id="iSav" type="number" step="0.01" placeholder="0.00"/>
-      <button class="btn btn-b" id="btnUpdateSav" onclick="setBal('sav')">Update</button>
-      <button class="btn btn-g" id="btnCalcSav" onclick="showBalCalc('sav')" style="margin-left:.3rem" title="Calculate from multiple accounts">∑</button>
-      <button class="btn btn-g" id="btnAddFundsSav" onclick="showAddFunds('sav')" style="margin-left:.3rem">+ Add Funds</button>
-    </div>
-    <div class="bal-hint" id="balHintSav">Auto-calculated · Update if reality differs</div>
-  </div>
-</div>
-
-<div class="app-body">
-  <div class="main-panel" id="mainPanel"><div class="empty">Welcome! Click <b>? Guide</b> to get started.</div></div>
 
   <div class="sidebar">
     <div class="tab-bar">
@@ -422,6 +424,7 @@
       </div>
     </div>
   </div>
+</div>
 </div>
 
 <!-- ADD FUNDS MODAL -->
