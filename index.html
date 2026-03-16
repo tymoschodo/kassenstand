@@ -11,10 +11,10 @@
     :root{--bg:#0d0d0d;--surface:#161616;--surface2:#1e1e1e;--border:#2a2a2a;--accent:#c8f06e;--accent2:#6ef0c8;--red:#f06e6e;--orange:#f0a06e;--text:#e8e8e0;--muted:#555;}
     *{box-sizing:border-box;margin:0;padding:0;}
     html,body{height:100%;overflow:hidden;}
-    body{background:var(--bg);color:var(--text);font-family:'Instrument Sans',sans-serif;display:flex;flex-direction:column;height:100vh;}
+    body{background:var(--bg);color:var(--text);font-family:'Instrument Sans',sans-serif;display:flex;height:100vh;overflow:hidden;}
 
     /* HEADER */
-    header{padding:.85rem 1.6rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1.4rem;flex-shrink:0;-webkit-app-region:drag;background:var(--surface);flex-wrap:wrap;}
+    header{padding:.85rem 1.6rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1.4rem;flex-shrink:0;-webkit-app-region:drag;background:var(--surface);flex-wrap:wrap;min-width:0;}
     .logo{font-family:'DM Serif Display',serif;font-size:1.5rem;letter-spacing:-.03em;-webkit-app-region:no-drag;flex-shrink:0;}
     .logo span{color:var(--accent);font-style:italic;}
     .hstats{display:flex;gap:1.3rem;-webkit-app-region:no-drag;flex-wrap:wrap;align-items:center;}
@@ -57,8 +57,8 @@
     .tab:hover:not(.active){color:var(--text);}
 
     /* LAYOUT */
-    .app-wrap{display:flex;flex:1;overflow:hidden;}
-    .left-col{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+    .app-wrap{display:flex;width:100%;height:100%;overflow:hidden;}
+    .left-col{display:flex;flex-direction:column;flex:1;overflow:hidden;min-width:0;}
     .main-panel{flex:1;overflow-y:auto;overflow-x:hidden;}
 
     /* MONTH BLOCKS */
@@ -97,7 +97,7 @@
     .nudge b{color:var(--text);}
 
     /* SIDEBAR */
-    .sidebar{width:390px;border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;}
+    .sidebar{width:360px;border-left:1px solid var(--border);background:var(--surface);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column;}
     .sb-body{padding:1.5rem 1.5rem;display:none;}
     .sb-body.active{display:block;}
     .sb-h3{font-family:'DM Serif Display',serif;font-size:1.15rem;margin-bottom:1rem;}
@@ -215,27 +215,26 @@
 </head>
 <body>
 
-<header>
-  <div class="logo">Kassen<span>stand</span></div>
-  <div class="hstats">
-    <div class="hstat"><strong class="g" id="hCash">—</strong><span id="hLblCash">cash</span></div>
-    <div class="hdiv"></div>
-    <div class="hstat"><strong class="b" id="hSav">—</strong><span id="hLblSav">savings</span></div>
-    <div class="hdiv"></div>
-    <div class="hstat"><strong id="hLiq">—</strong><span id="hLblLiq">total liquidity</span></div>
-    <div class="hdiv"></div>
-    <div class="hstat"><strong id="hBuf">—</strong><span id="hLblBuf">buffer</span> (<span id="hBufMode">—</span>)</div>
-    <div class="hdiv"></div>
-    <div class="hstat"><strong id="hEnd">—</strong><span id="hLblEnd">cash in 12 mo</span></div>
-  </div>
-  <div class="today-lbl">
-    <span id="todayLbl"></span>
-    <button class="help-btn" onclick="showWizard()">? Guide</button>
-  </div>
-</header>
-
 <div class="app-wrap">
   <div class="left-col">
+    <header>
+      <div class="logo">Kassen<span>stand</span></div>
+      <div class="hstats">
+        <div class="hstat"><strong class="g" id="hCash">—</strong><span id="hLblCash">cash</span></div>
+        <div class="hdiv"></div>
+        <div class="hstat"><strong class="b" id="hSav">—</strong><span id="hLblSav">savings</span></div>
+        <div class="hdiv"></div>
+        <div class="hstat"><strong id="hLiq">—</strong><span id="hLblLiq">total liquidity</span></div>
+        <div class="hdiv"></div>
+        <div class="hstat"><strong id="hBuf">—</strong><span id="hLblBuf">buffer</span> (<span id="hBufMode">—</span>)</div>
+        <div class="hdiv"></div>
+        <div class="hstat"><strong id="hEnd">—</strong><span id="hLblEnd">cash in 12 mo</span></div>
+      </div>
+      <div class="today-lbl">
+        <span id="todayLbl"></span>
+        <button class="help-btn" onclick="showWizard()">? Guide</button>
+      </div>
+    </header>
     <div class="bal-bar">
       <div class="bal-block">
         <div class="bal-lbl" id="lblCash">Current Cash Balance</div>
@@ -271,7 +270,7 @@
       <div class="tab" id="tabBtnGoals" onclick="tab('goals')">Goals</div>
       <div class="tab" id="tabBtnWhatif" onclick="tab('whatif')">What-If</div>
       <div class="tab" id="tabBtnProgress" onclick="tab('progress')">🏆</div>
-      <div class="tab" id="tabBtnSettings" onclick="tab('settings')">⚙ Settings</div>
+      <div class="tab" id="tabBtnSettings" onclick="tab('settings')" style="font-size:1.1rem">⚙</div>
     </div>
 
     <!-- EVENTS -->
@@ -1731,7 +1730,7 @@ function applyI18n(){
   Object.entries(tabLabelMap).forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.textContent=t(key);});
   // Settings tab always shows icon + text
   const stEl=document.getElementById('tabBtnSettings');
-  if(stEl)stEl.textContent='⚙ '+(t('tabSettings')||'Settings');
+  if(stEl)stEl.textContent='⚙';
   const tabKeys=['tabEvents','tabSavings','tabGoals','tabWhatif','tabProgress','tabSettings'];
   document.querySelectorAll('.tab').forEach((el,i)=>{if(tabKeys[i])el.textContent=t(tabKeys[i]);});
   // Help button
