@@ -2048,29 +2048,69 @@ function wizCalcUpdateTotal(type){
 }
 
 function wizIncomeRow(it,i){
-  return `<div class="wiz-dyn-row" id="wizInc${i}" style="display:grid;grid-template-columns:1fr 60px 90px 28px;gap:.4rem;margin-bottom:.4rem;align-items:end">
-    <div><label style="font-size:.58rem;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.15rem">${t('wizLblName')}</label>
-      <input class="wiz-inp" id="wizIncN${i}" placeholder="${t('wizPlaceholderIncome')}" value="${escH(it.name||'')}"/></div>
-    <div><label style="font-size:.58rem;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.15rem">${t('wizLblDay')}</label>
-      <input class="wiz-inp" id="wizIncD${i}" type="number" min="1" max="31" placeholder="5" value="${it.day||''}"/></div>
-    <div><label style="font-size:.58rem;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.15rem">${t('wizLblAmount')}</label>
-      <input class="wiz-inp" id="wizIncA${i}" type="number" step="0.01" placeholder="2000" value="${it.amount||''}"/></div>
-    <div style="display:flex;align-items:flex-end;padding-bottom:.05rem">
-      ${i>0?`<button class="xbtn" onclick="wizRemoveIncome(${i})">✕</button>`:'<div></div>'}
+  const freq=it.freq||'monthly';
+  const isM=freq==='monthly';
+  return `<div class="wiz-dyn-row" id="wizInc${i}" style="margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">
+    <div style="display:grid;grid-template-columns:1fr 80px 60px 24px;gap:.35rem;align-items:end;margin-bottom:.3rem">
+      <div><label class="mono-label">${t('wizLblName')}</label>
+        <input class="wiz-inp" id="wizIncN${i}" placeholder="${t('wizPlaceholderIncome')}" value="${escH(it.name||'')}"/></div>
+      <div><label class="mono-label">${t('wizLblAmount')}</label>
+        <input class="wiz-inp" id="wizIncA${i}" type="number" step="0.01" placeholder="2000" value="${it.amount||''}"/></div>
+      <div><label class="mono-label">${t('currency')||'Cur'}</label>
+        <select class="wiz-inp" id="wizIncCur${i}" style="padding:.28rem .2rem;font-size:.72rem">
+          ${['EUR','CHF','USD','GBP','PLN'].map(c=>`<option value="${c}" ${c===(it.cur||S.currency)?'selected':''}>${c}</option>`).join('')}
+        </select></div>
+      <div style="display:flex;align-items:flex-end">
+        ${i>0?`<button class="xbtn" onclick="wizRemoveIncome(${i})">✕</button>`:'<div></div>'}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr ${isM?'70px':'1fr'};gap:.35rem;align-items:end">
+      <div><label class="mono-label">${t('recFreqLabel')||'Frequency'}</label>
+        <select class="wiz-inp" id="wizIncFreq${i}" style="font-size:.72rem" onchange="wizRowFreqChange('inc',${i})">
+          ${['monthly','weekly','biweekly','custom'].map(f=>`<option value="${f}" ${f===freq?'selected':''}>${{'monthly':t('recFreqMonthly')||'Monthly','weekly':t('recFreqWeekly')||'Weekly','biweekly':t('recFreqBiweekly')||'2 weeks','custom':t('recFreqCustom')||'Custom'}[f]}</option>`).join('')}
+        </select></div>
+      ${isM
+        ?`<div><label class="mono-label">${t('wizLblDay')}</label>
+          <input class="wiz-inp" id="wizIncD${i}" type="number" min="1" max="31" placeholder="5" value="${it.day||''}"/></div>`
+        :`<div><label class="mono-label">${t('recStartLabel')||'Start'}</label>
+          <input class="wiz-inp" id="wizIncStart${i}" type="date" value="${it.startDate||''}"/></div>
+         ${freq==='custom'?`<div style="margin-top:.3rem"><label class="mono-label">${t('recIntervalLabel')||'Every N days'}</label>
+          <input class="wiz-inp" id="wizIncInterval${i}" type="number" min="1" placeholder="7" value="${it.interval||''}"/></div>`:''}`
+      }
     </div>
   </div>`;
 }
 
 function wizExpenseRow(it,i){
-  return `<div class="wiz-dyn-row" id="wizExp${i}" style="display:grid;grid-template-columns:1fr 60px 90px 28px;gap:.4rem;margin-bottom:.4rem;align-items:end">
-    <div><label style="font-size:.58rem;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.15rem">${t('wizLblName')}</label>
-      <input class="wiz-inp" id="wizExpN${i}" placeholder="${t('wizPlaceholderExpense')}" value="${escH(it.name||'')}"/></div>
-    <div><label style="font-size:.58rem;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.15rem">${t('wizLblDay')}</label>
-      <input class="wiz-inp" id="wizExpD${i}" type="number" min="1" max="31" placeholder="1" value="${it.day||''}"/></div>
-    <div><label style="font-size:.58rem;color:var(--muted);font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:.15rem">${t('wizLblAmount')}</label>
-      <input class="wiz-inp" id="wizExpA${i}" type="number" step="0.01" placeholder="1200" value="${it.amount||''}"/></div>
-    <div style="display:flex;align-items:flex-end;padding-bottom:.05rem">
-      ${i>0?`<button class="xbtn" onclick="wizRemoveExpense(${i})">✕</button>`:'<div></div>'}
+  const freq=it.freq||'monthly';
+  const isM=freq==='monthly';
+  return `<div class="wiz-dyn-row" id="wizExp${i}" style="margin-bottom:.6rem;padding-bottom:.5rem;border-bottom:1px solid var(--border)">
+    <div style="display:grid;grid-template-columns:1fr 80px 60px 24px;gap:.35rem;align-items:end;margin-bottom:.3rem">
+      <div><label class="mono-label">${t('wizLblName')}</label>
+        <input class="wiz-inp" id="wizExpN${i}" placeholder="${t('wizPlaceholderExpense')}" value="${escH(it.name||'')}"/></div>
+      <div><label class="mono-label">${t('wizLblAmount')}</label>
+        <input class="wiz-inp" id="wizExpA${i}" type="number" step="0.01" placeholder="1200" value="${it.amount||''}"/></div>
+      <div><label class="mono-label">${t('currency')||'Cur'}</label>
+        <select class="wiz-inp" id="wizExpCur${i}" style="padding:.28rem .2rem;font-size:.72rem">
+          ${['EUR','CHF','USD','GBP','PLN'].map(c=>`<option value="${c}" ${c===(it.cur||S.currency)?'selected':''}>${c}</option>`).join('')}
+        </select></div>
+      <div style="display:flex;align-items:flex-end">
+        ${i>0?`<button class="xbtn" onclick="wizRemoveExpense(${i})">✕</button>`:'<div></div>'}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr ${isM?'70px':'1fr'};gap:.35rem;align-items:end">
+      <div><label class="mono-label">${t('recFreqLabel')||'Frequency'}</label>
+        <select class="wiz-inp" id="wizExpFreq${i}" style="font-size:.72rem" onchange="wizRowFreqChange('exp',${i})">
+          ${['monthly','weekly','biweekly','custom'].map(f=>`<option value="${f}" ${f===freq?'selected':''}>${{'monthly':t('recFreqMonthly')||'Monthly','weekly':t('recFreqWeekly')||'Weekly','biweekly':t('recFreqBiweekly')||'2 weeks','custom':t('recFreqCustom')||'Custom'}[f]}</option>`).join('')}
+        </select></div>
+      ${isM
+        ?`<div><label class="mono-label">${t('wizLblDay')}</label>
+          <input class="wiz-inp" id="wizExpD${i}" type="number" min="1" max="31" placeholder="1" value="${it.day||''}"/></div>`
+        :`<div><label class="mono-label">${t('recStartLabel')||'Start'}</label>
+          <input class="wiz-inp" id="wizExpStart${i}" type="date" value="${it.startDate||''}"/></div>
+         ${freq==='custom'?`<div style="margin-top:.3rem"><label class="mono-label">${t('recIntervalLabel')||'Every N days'}</label>
+          <input class="wiz-inp" id="wizExpInterval${i}" type="number" min="1" placeholder="7" value="${it.interval||''}"/></div>`:''}`
+      }
     </div>
   </div>`;
 }
@@ -2108,6 +2148,18 @@ function wizReadLifeBudget(){
   const sM=sCur===S.currency?sMraw:Math.round(convertToBase(sMraw,sCur));
   const fM=fCur===S.currency?fMraw:Math.round(convertToBase(fMraw,fCur));
   return{superW:sW,funW:fW,superCur:sCur,funCur:fCur,superMok:sM,funMok:fM};
+}
+
+function wizRowFreqChange(type,i){
+  if(type==='inc'){
+    window._wizIncomes=wizReadIncomes();
+    window._wizIncomes[i].freq=document.getElementById('wizIncFreq'+i)?.value||'monthly';
+    document.getElementById('wizIncomeList').innerHTML=window._wizIncomes.map((it,j)=>wizIncomeRow(it,j)).join('');
+  } else {
+    window._wizExpenses=wizReadExpenses();
+    window._wizExpenses[i].freq=document.getElementById('wizExpFreq'+i)?.value||'monthly';
+    document.getElementById('wizExpenseList').innerHTML=window._wizExpenses.map((it,j)=>wizExpenseRow(it,j)).join('');
+  }
 }
 
 function wizReadIncomes(){
