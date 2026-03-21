@@ -1148,7 +1148,14 @@ function render(){
 
     let rows='';
     mEvs.forEach(ev=>{
-      if(ev.kind==='saving'){cash+=ev.amount;sav+=Math.abs(ev.amount);}else cash+=ev.amount;
+      // Only apply events that are >= _startingDate to running cash.
+      // Events before _startingDate are already baked into autoCash (the Update balance).
+      // They appear as past rows for context but must NOT change the running total.
+      const startDate=S._startingDate?parseDt(S._startingDate):TODAY;
+      const isBeforeStart=ev.date<startDate;
+      if(!isBeforeStart){
+        if(ev.kind==='saving'){cash+=ev.amount;sav+=Math.abs(ev.amount);}else cash+=ev.amount;
+      }
       const isPast=ev.date<TODAY;
       const isTod=isoOf(ev.date)===isoOf(TODAY);
       const isSav=ev.kind==='saving';
@@ -1195,9 +1202,13 @@ function render(){
           </div>
           <div class="${amtCls}" style="text-align:right">
             ${ev.currency&&ev.currency!==S.currency&&ev.amountOriginal!=null
-              ? `<div style="font-family:'DM Mono',monospace;font-size:.78rem;line-height:1.15">
-                  <span>${ev.amountOriginal_sign<0?'−':'+'}${ev.amountOriginal} ${ev.currency}</span><br>
-                  <span style="font-size:.62rem;color:var(--muted)">(${fmtM(ev.amount)})</span>
+              ? `<div style="font-family:'DM Mono',monospace;font-size:.78rem;line-height:1.4;text-align:right">
+                  <input class="amt-inp" type="number" step="0.01"
+                    value="${Math.abs(ev.amountOriginal)}"
+                    style="width:72px;font-size:.75rem;text-align:right"
+                    onchange="updAmtFx('${ev.id}','${ev.type}','${ev.recurringId||''}',parseFloat(this.value),'${ev.instanceDate||''}','${ev.currency}',${ev.amountOriginal_sign||( ev.amount>=0?1:-1)})"/>
+                  <span style="font-size:.68rem;color:var(--muted)"> ${ev.currency}</span><br>
+                  <span style="font-size:.58rem;color:var(--muted)">(${fmtM(ev.amount)})</span>
                 </div>`
               : `<input class="amt-inp" type="number" step="0.01" value="${ev.amount}"
                   onchange="updAmt('${ev.id}','${ev.type}','${ev.recurringId||''}',parseFloat(this.value),'${ev.instanceDate||''}')"/>`
@@ -2365,6 +2376,40 @@ function setBufMode(m){
   persist();render();updateBufUI();
 }
 function saveName(){const v=document.getElementById('settName').value.trim();if(v)S.userName=v;persist();}
+
+function updAmtFx(id,type,rid,absVal,instanceDate,currency,sign){
+  // Edit amount in original foreign currency — reconvert to base
+  if(isNaN(absVal)||absVal<=0)return;
+  const baseAmt=Math.round(convertToBase(absVal,currency)*sign*10)/10;
+  if(type==='recurring'){
+    const r=S.recurring.find(x=>x.id===rid);
+    if(!r)return;
+    showModal(
+      t('editTitle')||'Edit',
+      `<div style="font-size:.82rem;margin-bottom:.3rem">"${r?escH(r.name):''}" — ${absVal} ${currency} (≈ ${fmtM(Math.abs(baseAmt))})</div>`,
+      [
+        {label:t('editThis')||'Only this',cls:'btn-a',fn:()=>{
+          if(!S.recurringExceptions[rid])S.recurringExceptions[rid]=[];
+          if(instanceDate&&!S.recurringExceptions[rid].includes(instanceDate))
+            S.recurringExceptions[rid].push(instanceDate);
+          S.oneTime.push({id:'ot_'+Date.now(),name:r.name,date:instanceDate,
+            amount:baseAmt,kind:r.kind,
+            currency:currency,amountOriginal:absVal,amountOriginal_sign:sign});
+          persist();render();closeModal();
+        }},
+        {label:t('editAll')||'All future',cls:'btn-g',fn:()=>{
+          r.amount=baseAmt;r.amountOriginal=absVal;r.amountOriginal_sign=sign;
+          persist();render();closeModal();
+        }},
+        {label:t('cancel')||'Cancel',cls:'btn-g',fn:closeModal},
+      ]
+    );
+  } else {
+    const e=S.oneTime.find(x=>x.id===id);
+    if(e){e.amount=baseAmt;e.amountOriginal=absVal;e.amountOriginal_sign=sign;}
+    persist();render();
+  }
+}
 
 function updAmt(id,type,rid,val,instanceDate){
   if(isNaN(val))return;
