@@ -410,6 +410,9 @@
       </div>
       <div id="fxStatus" style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);margin-bottom:.8rem"></div>
 
+      <div class="sb-h4" id="settProfileLabel">Income profile</div>
+      <div id="profileOpts" style="display:flex;flex-direction:column;gap:.3rem;margin-bottom:.9rem"></div>
+
       <div class="sb-h4" id="settNameLabel">Your name</div>
       <div class="fr"><input class="fi" id="settName" placeholder="Your name"/></div>
       <button class="btn btn-g" style="width:100%;margin-bottom:.8rem" id="settNameBtn" onclick="saveName()">Save name</button>
@@ -618,6 +621,67 @@ function securitySavings(){
   // Savings NOT allocated to any goal — used for buffer calculation
   return Math.max(0,S.savingsBalance-goalSavings());
 }
+function showRealizeGoal(goalId){
+  const g=(S.goals||[]).find(x=>x.id===goalId);
+  if(!g)return;
+  const alloc=(S.goalAllocations||{})[goalId]||0;
+  document.getElementById('realizeGoalId').value=goalId;
+  document.getElementById('realizeGoalTitle').textContent=(t('realizeGoal')||'Realize')+': '+escH(g.name);
+  document.getElementById('realizeGoalDate').value=isoOf(TODAY);
+  document.getElementById('realizeGoalAmt').value=alloc||g.target;
+  document.getElementById('realizeGoalOverlay').style.display='flex';
+  previewRealizeGoal();
+}
+
+function previewRealizeGoal(){
+  const goalId=document.getElementById('realizeGoalId').value;
+  const g=(S.goals||[]).find(x=>x.id===goalId);
+  if(!g)return;
+  const spent=parseFloat(document.getElementById('realizeGoalAmt').value)||0;
+  const alloc=(S.goalAllocations||{})[goalId]||0;
+  const leftover=Math.round((alloc-spent)*100)/100;
+  const el=document.getElementById('realizeGoalPreview');
+  if(!spent){el.style.display='none';return;}
+  el.style.display='block';
+  let html=`<span style="color:var(--text)">${t('realizeSpent')||'Spent'}: </span><span style="color:var(--red)">−${fmtM(spent)}</span><br>`;
+  html+=`<span style="color:var(--muted)">${t('realizeAlloc')||'From goal savings'}: ${fmtM(alloc)}</span><br>`;
+  if(leftover>0) html+=`<span style="color:var(--accent2)">→ ${fmtM(leftover)} ${t('realizeLeftover')||'leftover returns to cash'}</span>`;
+  else if(leftover<0) html+=`<span style="color:var(--orange)">⚠ ${fmtM(Math.abs(leftover))} ${t('realizeOver')||'over allocated — draws from cash'}</span>`;
+  else html+=`<span style="color:var(--muted)">${t('realizeExact')||'Exact — no leftover'}</span>`;
+  el.innerHTML=html;
+}
+
+function confirmRealizeGoal(){
+  const goalId=document.getElementById('realizeGoalId').value;
+  const g=(S.goals||[]).find(x=>x.id===goalId);
+  if(!g)return;
+  const spent=parseFloat(document.getElementById('realizeGoalAmt').value);
+  const date=document.getElementById('realizeGoalDate').value;
+  if(!date||isNaN(spent)||spent<=0){alert(t('fillAll'));return;}
+  const alloc=(S.goalAllocations||{})[goalId]||0;
+  const leftover=Math.round((alloc-spent)*100)/100;
+  S.oneTime.push({id:'gl_spend_'+Date.now(),name:g.name,date,
+    amount:-Math.abs(spent),kind:'cash',currency:S.currency,
+    amountOriginal:spent,amountOriginal_sign:-1,fromGoal:goalId});
+  S.savingsBalance=Math.max(0,S.savingsBalance-alloc);
+  if(leftover>0){
+    S.oneTime.push({id:'gl_leftover_'+Date.now(),
+      name:(t('leftoverFrom')||'Leftover from')+': '+g.name,
+      date,amount:leftover,kind:'cash',currency:S.currency,
+      amountOriginal:leftover,amountOriginal_sign:1});
+  }
+  if(S.goalAllocations)delete S.goalAllocations[goalId];
+  document.getElementById('realizeGoalOverlay').style.display='none';
+  persist();render();checkBadges();
+  showToast('✓ '+g.name+' '+(t('realized')||'realized'));
+  setTimeout(()=>{
+    showModal(t('goalRealized')||'Goal realized!',
+      `<p style="font-size:.82rem;margin-bottom:.5rem">${g.name} ${t('goalRealizedMsg')||'has been marked as spent. Remove from goals?'}</p>`,
+      [{label:t('removeGoal')||'Remove goal',cls:'btn-b',fn:()=>{delGoal(goalId);closeModal();}},
+       {label:t('keepGoal')||'Keep it',cls:'btn-g',fn:closeModal}]);
+  },300);
+}
+
 function allocateToGoal(goalId, amount){
   if(!S.goalAllocations)S.goalAllocations={};
   S.goalAllocations[goalId]=Math.max(0,amount);
@@ -1203,9 +1267,9 @@ function render(){
           <div class="${amtCls}" style="text-align:right">
             ${ev.currency&&ev.currency!==S.currency&&ev.amountOriginal!=null
               ? `<div style="font-family:'DM Mono',monospace;font-size:.78rem;line-height:1.4;text-align:right">
-                  <input class="amt-inp" type="number" step="0.01"
+                  <span style="font-size:.8rem;color:${ev.amount<0?'var(--red)':'var(--accent2)'}">${ev.amount<0?'−':'+'}</span><input class="amt-inp" type="number" step="0.01"
                     value="${Math.abs(ev.amountOriginal)}"
-                    style="width:72px;font-size:.75rem;text-align:right"
+                    style="width:66px;font-size:.75rem;text-align:right"
                     onchange="updAmtFx('${ev.id}','${ev.type}','${ev.recurringId||''}',parseFloat(this.value),'${ev.instanceDate||''}','${ev.currency}',${ev.amountOriginal_sign||( ev.amount>=0?1:-1)})"/>
                   <span style="font-size:.68rem;color:var(--muted)"> ${ev.currency}</span><br>
                   <span style="font-size:.58rem;color:var(--muted)">(${fmtM(ev.amount)})</span>
@@ -1425,7 +1489,16 @@ function updateBufUI(){
   });
   const checked=document.querySelector(`.buf-opt input[value="${S.bufferMode||'c'}"]`);
   if(checked)checked.checked=true;
-
+  // Render income profile selector
+  const profEl=document.getElementById('profileOpts');
+  if(profEl){
+    const icons={stable:'💼',regular:'📅',freelance:'🎯'};
+    profEl.innerHTML=['stable','regular','freelance'].map(pr=>
+      `<label style="display:flex;align-items:center;gap:.55rem;padding:.5rem .65rem;border-radius:6px;cursor:pointer;border:1px solid ${(S.incomeProfile||'regular')===pr?'var(--accent)':'var(--border)'};background:${(S.incomeProfile||'regular')===pr?'#111e05':'var(--surface2)'}" onclick="setIncomeProfile('${pr}')">
+        <span style="font-size:1rem">${icons[pr]}</span>
+        <span style="font-size:.78rem">${t('wizP_'+pr)||pr}</span>
+      </label>`).join('');
+  }
 }
 
 // ══════════════════════════════
@@ -1688,17 +1761,29 @@ function buildWizSteps(){return [
       const fW=parseFloat(prev.funW)||0;
       const sM=prev.superMok!=null?prev.superMok:(sW>0?Math.round(sW*4.33):null);
       const fM=prev.funMok!=null?prev.funMok:(fW>0?Math.round(fW*4.33):null);
+      const sC=prev.superCur||S.currency;
+      const fC=prev.funCur||S.currency;
       return `
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin-bottom:.7rem">
           <div class="wiz-input-row" style="margin:0">
             <label>${t('wiz4Super')}</label>
-            <input class="wiz-inp" id="wizSuperW" type="number" step="1" placeholder="${t('wizPlaceholderSuperW')}" value="${prev.superW||''}"
-              oninput="wizUpdateLifeBudget()"/>
+            <div style="display:flex;gap:.3rem">
+              <input class="wiz-inp" id="wizSuperW" type="number" step="1" placeholder="${t('wizPlaceholderSuperW')}" value="${prev.superW||''}"
+                oninput="wizUpdateLifeBudget()" style="flex:1"/>
+              <select class="wiz-inp" id="wizSuperCur" style="padding:.3rem .2rem;font-size:.72rem;width:55px" onchange="wizUpdateLifeBudget()">
+                ${['EUR','CHF','USD','GBP','PLN'].map(c=>`<option value="${c}" ${c===sC?'selected':''}>${c}</option>`).join('')}
+              </select>
+            </div>
           </div>
           <div class="wiz-input-row" style="margin:0">
             <label>${t('wiz4Fun')}</label>
-            <input class="wiz-inp" id="wizFunW" type="number" step="1" placeholder="${t('wizPlaceholderFunW')}" value="${prev.funW||''}"
-              oninput="wizUpdateLifeBudget()"/>
+            <div style="display:flex;gap:.3rem">
+              <input class="wiz-inp" id="wizFunW" type="number" step="1" placeholder="${t('wizPlaceholderFunW')}" value="${prev.funW||''}"
+                oninput="wizUpdateLifeBudget()" style="flex:1"/>
+              <select class="wiz-inp" id="wizFunCur" style="padding:.3rem .2rem;font-size:.72rem;width:55px" onchange="wizUpdateLifeBudget()">
+                ${['EUR','CHF','USD','GBP','PLN'].map(c=>`<option value="${c}" ${c===fC?'selected':''}>${c}</option>`).join('')}
+              </select>
+            </div>
           </div>
         </div>
         <div id="wizLifeConfirm" style="display:${sW||fW?'block':'none'}">
@@ -1897,9 +1982,13 @@ function wizLifeConfirmHtml(sW,fW,sM,fM){
 function wizReadLifeBudget(){
   const sW=document.getElementById('wizSuperW')?.value||'';
   const fW=document.getElementById('wizFunW')?.value||'';
-  const sM=parseFloat(document.getElementById('wizSuperM')?.value)||Math.round((parseFloat(sW)||0)*4.33);
-  const fM=parseFloat(document.getElementById('wizFunM')?.value)||Math.round((parseFloat(fW)||0)*4.33);
-  return{superW:sW,funW:fW,superMok:sM,funMok:fM};
+  const sCur=document.getElementById('wizSuperCur')?.value||S.currency;
+  const fCur=document.getElementById('wizFunCur')?.value||S.currency;
+  const sMraw=parseFloat(document.getElementById('wizSuperM')?.value)||Math.round((parseFloat(sW)||0)*4.33);
+  const fMraw=parseFloat(document.getElementById('wizFunM')?.value)||Math.round((parseFloat(fW)||0)*4.33);
+  const sM=sCur===S.currency?sMraw:Math.round(convertToBase(sMraw,sCur));
+  const fM=fCur===S.currency?fMraw:Math.round(convertToBase(fMraw,fCur));
+  return{superW:sW,funW:fW,superCur:sCur,funCur:fCur,superMok:sM,funMok:fM};
 }
 
 function wizReadIncomes(){
@@ -1967,10 +2056,13 @@ function wizMagicGenerate(){
   const lb=window._wizLifeBudget||{};
   const sM=lb.superMok||parseFloat(document.getElementById('wizSuperM')?.value)||0;
   const fM=lb.funMok||parseFloat(document.getElementById('wizFunM')?.value)||0;
+  const lb2=window._wizLifeBudget||{};
   if(sM>0&&!S.recurring.find(r=>r.name==='Supermarket'))
-    S.recurring.push({id:'rc_super_'+Date.now(),name:'Supermarket',day:1,amount:-sM,kind:'cash'});
+    S.recurring.push({id:'rc_super_'+Date.now(),name:'Supermarket',day:1,amount:-sM,kind:'cash',
+      currency:lb2.superCur||S.currency,amountOriginal:lb2.superMok||sM,amountOriginal_sign:-1});
   if(fM>0&&!S.recurring.find(r=>r.name==='Fun & Leisure'))
-    S.recurring.push({id:'rc_fun_'+Date.now(),name:'Fun & Leisure',day:1,amount:-fM,kind:'cash'});
+    S.recurring.push({id:'rc_fun_'+Date.now(),name:'Fun & Leisure',day:1,amount:-fM,kind:'cash',
+      currency:lb2.funCur||S.currency,amountOriginal:lb2.funMok||fM,amountOriginal_sign:-1});
 
   // Close wizard
   if(document.getElementById('wizDontShow').checked)S.hideTutorial=true;
@@ -2020,6 +2112,27 @@ function wizMagicGenerate(){
   }, 400);
 }
 let _wizStep=0;
+function wizSetProfile(p){
+  S.incomeProfile=p;
+  persist();
+  renderWizStep();
+}
+
+function setIncomeProfile(p){
+  S.incomeProfile=p;
+  persist();render();
+  // Re-render selector
+  const el=document.getElementById('profileOpts');
+  if(el){
+    const icons={stable:'💼',regular:'📅',freelance:'🎯'};
+    el.querySelectorAll('label').forEach((lbl,i)=>{
+      const pr=['stable','regular','freelance'][i];
+      lbl.style.borderColor=pr===p?'var(--accent)':'var(--border)';
+      lbl.style.background=pr===p?'#111e05':'var(--surface2)';
+    });
+  }
+}
+
 function wizSetBuf(m){
   S.bufferMode=m;
   document.querySelectorAll('.wiz-buf-opt').forEach(el=>{
