@@ -807,9 +807,9 @@ function importData(input){
 // ══════════════════════════════
 // DATES
 // ══════════════════════════════
-const TODAY=(()=>{const d=new Date();d.setHours(0,0,0,0);return d;})();
-const isoOf=d=>d.toISOString().split('T')[0];
-const parseDt=s=>new Date(s+'T00:00:00');
+const TODAY=(()=>{const d=new Date();d.setHours(9,0,0,0);return d;})();
+const isoOf=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+dd;};
+const parseDt=s=>new Date(s+'T15:00:00');
 const fmtS=d=>d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit'});
 function getMN(){
   const lang=S.language||'en';
@@ -846,11 +846,10 @@ const pColor=pct=>hColor(Math.min(1,pct/100));
 // ══════════════════════════════
 function computeCurrentCash(){
   const startDate=S._startingDate?parseDt(S._startingDate):TODAY;
-  const todayMidnight=parseDt(isoOf(TODAY)); // strictly before today — today's events not included
   let cash=S._startingCash||0;
   const all=genEvents();
   all.forEach(ev=>{
-    if(ev.date<todayMidnight&&ev.date>=startDate){
+    if(ev.date<NOW&&ev.date>=startDate){
       if(ev.kind==='saving')cash+=ev.amount;
       else cash+=ev.amount;
     }
@@ -860,11 +859,10 @@ function computeCurrentCash(){
 
 function computeCurrentSavings(){
   const startDate=S._startingDate?parseDt(S._startingDate):TODAY;
-  const todayMidnight=parseDt(isoOf(TODAY));
   let sav=S.savingsBalance;
   const all=genEvents();
   all.forEach(ev=>{
-    if(ev.date<todayMidnight&&ev.date>=startDate&&ev.kind==='saving'){
+    if(ev.date<NOW&&ev.date>=startDate&&ev.kind==='saving'){
       sav+=Math.abs(ev.amount);
     }
   });
@@ -1280,13 +1278,24 @@ function render(){
   let html='';
   let _redLineCrossed=autoCash<0;
 
-  // Pre-compute starting cash by subtracting all past events from autoCash.
-  // This reconstructs what cash was BEFORE any past events this cycle.
-  // Then we replay all events forwards — past and future — to get coherent running balances.
-  // Example: autoCash=1000, past event -800 → reconstructed start=1800, after event=1000 ✓
-  const pastCashEvs=evs.filter(ev=>ev.date<TODAY&&ev.kind!=='saving');
-  const pastCashSum=pastCashEvs.reduce((s,ev)=>s+ev.amount,0);
-  let cash=Math.round((autoCash-pastCashSum)*100)/100;
+  // Timeline running balance logic:
+  // autoCash = _startingCash + events between _startingDate and TODAY (from computeCurrentCash)
+  //
+  // For events BEFORE _startingDate: reconstruct backwards from _startingCash.
+  //   cash before event = cashAfterEvent - event.amount
+  //   So start = _startingCash - sum(events from start-of-month up to _startingDate)
+  //
+  // For events ON or AFTER _startingDate: apply forward from _startingCash.
+  //
+  // This gives a coherent timeline: past rows show what cash was at each point,
+  // and the balance at TODAY matches autoCash exactly.
+
+  const startDate=S._startingDate?parseDt(S._startingDate):TODAY;
+  // Sum events from start of current month up to (not including) _startingDate
+  const evsBefore=evs.filter(ev=>ev.date<startDate&&ev.kind!=='saving');
+  const sumBefore=evsBefore.reduce((s,ev)=>s+ev.amount,0);
+  // Starting point for timeline = what cash was before any events this cycle
+  let cash=Math.round((S._startingCash-sumBefore)*100)/100;
   let sav=autoSav;
 
   getMonths().forEach(({year,month},mi)=>{
@@ -1295,14 +1304,14 @@ function render(){
     const color=MC[mi%MC.length];
     const surplus=monthlySurplus(mk,evs);
     const totalExp=mEvs.reduce((s,e)=>e.amount<0?s+Math.abs(e.amount):s,0);
-    const paidExp=mEvs.filter(e=>e.date<TODAY&&e.amount<0).reduce((s,e)=>s+Math.abs(e.amount),0);
+    const paidExp=mEvs.filter(e=>e.date<NOW&&e.amount<0).reduce((s,e)=>s+Math.abs(e.amount),0);
     const paidPct=totalExp>0?Math.min(100,Math.round(paidExp/totalExp*100)):100;
     const pc=pColor(paidPct);
 
     let rows='';
     mEvs.forEach(ev=>{
-      // Apply every event — past and future — to running balance.
-      // Past balances are coherent because we reconstructed the start from autoCash.
+      // Apply ALL events forward — past and future.
+      // Past events reconstruct history; at TODAY the balance equals autoCash exactly.
       if(ev.kind==='saving'){cash+=ev.amount;sav+=Math.abs(ev.amount);}else cash+=ev.amount;
       const isPast=ev.date<TODAY;
       const isTod=isoOf(ev.date)===isoOf(TODAY);
@@ -2717,7 +2726,7 @@ function updDate(id,type,rid,newDate,instanceDate){
         }},
         {label:t('editAll')||'Change day for all',cls:'btn-g',fn:()=>{
           // Change the day-of-month for monthly, or startDate for others
-          const d=new Date(newDate+'T00:00:00');
+          const d=new Date(newDate+'T15:00:00');
           if((r.freq||'monthly')==='monthly'){r.day=d.getDate();}
           else{r.startDate=newDate;}
           persist();render();closeModal();
