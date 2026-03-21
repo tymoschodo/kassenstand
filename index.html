@@ -2112,19 +2112,27 @@ function wizReadLifeBudget(){
 
 function wizReadIncomes(){
   const items=window._wizIncomes||[];
-  return items.map((_,i)=>({
+  return items.map((it,i)=>({
     name:(document.getElementById('wizIncN'+i)?.value||'').trim(),
     day:document.getElementById('wizIncD'+i)?.value||'',
     amount:document.getElementById('wizIncA'+i)?.value||'',
+    cur:document.getElementById('wizIncCur'+i)?.value||it.cur||S.currency,
+    freq:document.getElementById('wizIncFreq'+i)?.value||it.freq||'monthly',
+    startDate:document.getElementById('wizIncStart'+i)?.value||it.startDate||'',
+    interval:document.getElementById('wizIncInterval'+i)?.value||it.interval||'',
   }));
 }
 
 function wizReadExpenses(){
   const items=window._wizExpenses||[];
-  return items.map((_,i)=>({
+  return items.map((it,i)=>({
     name:(document.getElementById('wizExpN'+i)?.value||'').trim(),
     day:document.getElementById('wizExpD'+i)?.value||'',
     amount:document.getElementById('wizExpA'+i)?.value||'',
+    cur:document.getElementById('wizExpCur'+i)?.value||it.cur||S.currency,
+    freq:document.getElementById('wizExpFreq'+i)?.value||it.freq||'monthly',
+    startDate:document.getElementById('wizExpStart'+i)?.value||it.startDate||'',
+    interval:document.getElementById('wizExpInterval'+i)?.value||it.interval||'',
   }));
 }
 
@@ -2153,22 +2161,35 @@ function wizMagicGenerate(){
   // Save income recurring events
   (window._wizIncomes||[]).forEach(it=>{
     const n=it.name.trim();
-    const d=parseInt(it.day);
     const a=parseFloat(it.amount);
-    if(!n||isNaN(d)||isNaN(a)||a<=0)return;
-    // avoid duplicates if re-running wizard
-    if(!S.recurring.find(r=>r.name===n&&r.kind==='cash'&&r.amount===a))
-      S.recurring.push({id:'rc_'+Date.now()+'_'+Math.random(),name:n,day:d,amount:a,kind:'cash'});
+    const cur=it.cur||S.currency;
+    const freq=it.freq||'monthly';
+    if(!n||isNaN(a)||a<=0)return;
+    const aBase=cur===S.currency?a:Math.round(convertToBase(a,cur)*100)/100;
+    if(!S.recurring.find(r=>r.name===n&&r.kind==='cash')){
+      const rec={id:'rc_'+Date.now()+'_'+Math.random(),name:n,amount:aBase,
+        kind:'cash',freq,currency:cur,amountOriginal:a,amountOriginal_sign:1};
+      if(freq==='monthly'){rec.day=parseInt(it.day)||1;}
+      else{rec.startDate=it.startDate||isoOf(TODAY);if(freq==='custom')rec.interval=parseInt(it.interval)||7;}
+      S.recurring.push(rec);
+    }
   });
 
   // Save expense recurring events
   (window._wizExpenses||[]).forEach(it=>{
     const n=it.name.trim();
-    const d=parseInt(it.day);
     const a=parseFloat(it.amount);
-    if(!n||isNaN(d)||isNaN(a)||a<=0)return;
-    if(!S.recurring.find(r=>r.name===n&&r.kind==='cash'&&r.amount===-a))
-      S.recurring.push({id:'rc_'+Date.now()+'_'+Math.random(),name:n,day:d,amount:-a,kind:'cash'});
+    const cur=it.cur||S.currency;
+    const freq=it.freq||'monthly';
+    if(!n||isNaN(a)||a<=0)return;
+    const aBase=cur===S.currency?a:Math.round(convertToBase(a,cur)*100)/100;
+    if(!S.recurring.find(r=>r.name===n&&r.kind==='cash')){
+      const rec={id:'rc_'+Date.now()+'_'+Math.random(),name:n,amount:-aBase,
+        kind:'cash',freq,currency:cur,amountOriginal:a,amountOriginal_sign:-1};
+      if(freq==='monthly'){rec.day=parseInt(it.day)||1;}
+      else{rec.startDate=it.startDate||isoOf(TODAY);if(freq==='custom')rec.interval=parseInt(it.interval)||7;}
+      S.recurring.push(rec);
+    }
   });
 
   // Life budget
