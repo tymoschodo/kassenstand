@@ -808,7 +808,7 @@ function importData(input){
 // DATES
 // ══════════════════════════════
 const TODAY=(()=>{const d=new Date();d.setHours(0,0,0,0);return d;})();
-const NOW=new Date();
+// NOW is recalculated dynamically in render() — do not use as global constant
 const parseDt=s=>new Date(s+'T15:00:00');
 const isoOf=d=>{const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+dd;};
 const fmtS=d=>d.toLocaleDateString('de-CH',{day:'2-digit',month:'2-digit'});
@@ -846,6 +846,7 @@ const pColor=pct=>hColor(Math.min(1,pct/100));
 // to the stored starting balance (_startingCash from _startingDate)
 // ══════════════════════════════
 function computeCurrentCash(){
+  const NOW=new Date();
   const startDate=S._startingDate?parseDt(S._startingDate):TODAY;
   let cash=S._startingCash||0;
   const all=genEvents();
@@ -859,6 +860,7 @@ function computeCurrentCash(){
 }
 
 function computeCurrentSavings(){
+  const NOW=new Date();
   const startDate=S._startingDate?parseDt(S._startingDate):TODAY;
   let sav=S.savingsBalance;
   const all=genEvents();
@@ -1213,6 +1215,7 @@ function computeLevel(){
 // RENDER
 // ══════════════════════════════
 function render(){
+  const NOW=new Date(); // recalculate every render for accurate 15:00 boundary
   window.S=S; // keep global in sync
   checkBadges();
   updateBufferHistory();
@@ -1234,8 +1237,11 @@ function render(){
   } else if(savHintEl){
     savHintEl.textContent=t('autoCalcSav')||'Auto-calculated · savings';
   }
-  document.getElementById('iCash').value=S._startingCash||'';
-  document.getElementById('iSav').value=autoSav||'';
+  // Only update balance inputs if they don't have focus (user might be typing)
+  const iCashEl=document.getElementById('iCash');
+  const iSavEl=document.getElementById('iSav');
+  if(iCashEl&&document.activeElement!==iCashEl)iCashEl.value=S._startingCash||'';
+  if(iSavEl&&document.activeElement!==iSavEl)iSavEl.value=autoSav||'';
   document.getElementById('hCash').textContent=fmtM(autoCash);
   document.getElementById('hSav').textContent=fmtM(autoSav);
   document.getElementById('hLiq').textContent=fmtM(autoCash+autoSav);
@@ -1481,7 +1487,14 @@ function render(){
     ${curY>0?`<button class="btn btn-g" style="font-size:.65rem;margin-left:.5rem" onclick="S._timelineYears=0;persist();render()">${t('showLessYears')||'Hide years'} ▴</button>`:''}
   </div>`;
 
-  document.getElementById('mainPanel').innerHTML=(baner?baner:'')+html;
+  // Save scroll position before re-render
+  const mainPanel=document.getElementById('mainPanel');
+  const scrollTop=mainPanel?mainPanel.scrollTop:0;
+
+  mainPanel.innerHTML=(baner?baner:'')+html;
+
+  // Restore scroll position after re-render
+  if(mainPanel)mainPanel.scrollTop=scrollTop;
   renderRecLists();
   renderGoals();
   renderProgress();
@@ -3156,12 +3169,28 @@ function tab(t){
   window.S = S; // expose for fx.js/i18n.js
   // Fetch FX rates (non-blocking)
   fetchRates().then(r=>{
-    if(!r.cached&&r.ok){recomputeAllBase();render();}
+    if(!r.cached&&r.ok){
+      recomputeAllBase();
+      persist();
+      // Only re-render if user isn't actively typing somewhere
+      const active=document.activeElement;
+      const tag=active?active.tagName:'';
+      if(tag!=='INPUT'&&tag!=='TEXTAREA'&&tag!=='SELECT')render();
+      else updateFxStatus(r);
+    }
     updateFxStatus(r);
   });
   // Refresh rates every hour
   setInterval(()=>{
-    fetchRates().then(r=>{if(r.ok&&!r.cached){recomputeAllBase();render();}updateFxStatus(r);});
+    fetchRates().then(r=>{
+      if(r.ok&&!r.cached){
+        recomputeAllBase();
+        const active=document.activeElement;
+        const tag=active?active.tagName:'';
+        if(tag!=='INPUT'&&tag!=='TEXTAREA'&&tag!=='SELECT')render();
+      }
+      updateFxStatus(r);
+    });
   }, 3600000);
   render();
   window.S=S;
