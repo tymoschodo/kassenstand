@@ -1748,49 +1748,86 @@ function wizCalcRenderRows(type){
   if(!el)return;
   el.innerHTML=rows.map((r,i)=>`
     <div style="display:grid;grid-template-columns:1fr 80px 24px;gap:.35rem;align-items:center;margin-bottom:.35rem">
-      <input class="wiz-inp" type="number" step="0.01" placeholder="0.00" value="${r.amt||''}"
-        oninput="wizCalcSetAmt('${type}',${i},this.value)"
-        style="font-size:.9rem;text-align:right"/>
+      <input class="wiz-inp" type="number" step="0.01" placeholder="0.00"
+        id="wizCalcAmt_${type}_${i}"
+        style="font-size:.9rem;text-align:right"
+        onblur="wizCalcSync('${type}')"
+        onchange="wizCalcSync('${type}')"/>
       <select class="wiz-inp" style="font-size:.78rem;padding:.3rem .3rem"
-        onchange="wizCalcSetCur('${type}',${i},this.value)">
+        id="wizCalcCur_${type}_${i}"
+        onchange="wizCalcSync('${type}')">
         ${['EUR','CHF','USD','GBP','PLN'].map(c=>`<option value="${c}" ${c===r.cur?'selected':''}>${c}</option>`).join('')}
       </select>
       ${i>0?`<button class="xbtn" onclick="wizCalcRemoveRow('${type}',${i})">✕</button>`:'<div></div>'}
     </div>
-    ${r.amt&&r.cur!==S.currency?`<div style="font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:.2rem;text-align:right">≈ ${fmtM(convertToBase(parseFloat(r.amt)||0,r.cur))}</div>`:''}
+    <div id="wizCalcHint_${type}_${i}" style="font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:.2rem;text-align:right;min-height:.8rem"></div>
   `).join('');
+  // Restore values without triggering re-render
+  rows.forEach((r,i)=>{
+    const inp=document.getElementById('wizCalcAmt_'+type+'_'+i);
+    if(inp&&r.amt)inp.value=r.amt;
+  });
+  wizCalcUpdateHints(type);
   wizCalcUpdateTotal(type);
 }
-function wizCalcSetAmt(type,i,v){
-  const rows=type==='cash'?window._wizCashRows:window._wizSavRows;
-  if(rows[i])rows[i].amt=v;
-  wizCalcRenderRows(type);
+function wizCalcSync(type){
+  // Read DOM values into state + update hints/total — NO re-render, preserves focus
+  const rows=type==='cash'?(window._wizCashRows||[]):(window._wizSavRows||[]);
+  rows.forEach((r,i)=>{
+    const inp=document.getElementById('wizCalcAmt_'+type+'_'+i);
+    const sel=document.getElementById('wizCalcCur_'+type+'_'+i);
+    if(inp)r.amt=inp.value;
+    if(sel)r.cur=sel.value;
+  });
+  wizCalcUpdateHints(type);
+  wizCalcUpdateTotal(type);
 }
-function wizCalcSetCur(type,i,c){
-  const rows=type==='cash'?window._wizCashRows:window._wizSavRows;
-  if(rows[i])rows[i].cur=c;
-  wizCalcRenderRows(type);
+function wizCalcUpdateHints(type){
+  const rows=type==='cash'?(window._wizCashRows||[]):(window._wizSavRows||[]);
+  rows.forEach((r,i)=>{
+    const hint=document.getElementById('wizCalcHint_'+type+'_'+i);
+    if(!hint)return;
+    const a=parseFloat(r.amt)||0;
+    if(a&&r.cur&&r.cur!==S.currency){
+      hint.textContent=window.S?.fxCache?.rates
+        ?'≈ '+fmtM(convertToBase(a,r.cur))
+        :'⚠ '+(t('fxNotLoaded')||'rates loading...');
+      hint.style.color=window.S?.fxCache?.rates?'var(--muted)':'var(--orange)';
+    } else {
+      hint.textContent='';
+    }
+  });
 }
 function wizCalcAddRow(type){
+  wizCalcSync(type);
   const rows=type==='cash'?window._wizCashRows:window._wizSavRows;
   rows.push({amt:'',cur:S.currency});
   wizCalcRenderRows(type);
+  setTimeout(()=>{
+    const inp=document.getElementById('wizCalcAmt_'+type+'_'+(rows.length-1));
+    if(inp)inp.focus();
+  },30);
 }
 function wizCalcRemoveRow(type,i){
+  wizCalcSync(type);
   if(type==='cash')window._wizCashRows.splice(i,1);
   else window._wizSavRows.splice(i,1);
   wizCalcRenderRows(type);
 }
 function wizCalcTotal(type){
+  wizCalcSync(type);
   const rows=type==='cash'?(window._wizCashRows||[]):(window._wizSavRows||[]);
   return rows.reduce((s,r)=>{
     const a=parseFloat(r.amt)||0;
-    if(!a)return s;
-    return s+(r.cur===S.currency?a:convertToBase(a,r.cur));
+    return a?s+(r.cur===S.currency?a:convertToBase(a,r.cur)):s;
   },0);
 }
 function wizCalcUpdateTotal(type){
-  const total=wizCalcTotal(type);
+  const rows=type==='cash'?(window._wizCashRows||[]):(window._wizSavRows||[]);
+  const total=rows.reduce((s,r)=>{
+    const a=parseFloat(r.amt)||0;
+    return a?s+(r.cur===S.currency?a:convertToBase(a,r.cur)):s;
+  },0);
   const el=document.getElementById(type==='cash'?'wizCashTotal':'wizSavTotal');
   if(el)el.textContent=total>0?fmtM(Math.round(total*100)/100):'—';
 }
@@ -2278,12 +2315,13 @@ function balCalcUpdate(){
     if(isNaN(amt)||amt===0){eqEl.textContent='= —';eqEl.style.color='var(--muted)';return;}
     const inBase=cur===S.currency?amt:convertToBase(amt,cur);
     total+=inBase;
-    if(cur===S.currency){
-      eqEl.textContent=`= ${fmtM(inBase)}`;
+    if(!window.S?.fxCache?.rates&&cur!==S.currency){
+      eqEl.textContent=`⚠ ${t('fxNotLoaded')||'rates loading...'}`;
+      eqEl.style.color='var(--orange)';
     } else {
       eqEl.textContent=`= ${fmtM(inBase)}`;
+      eqEl.style.color='var(--accent2)';
     }
-    eqEl.style.color='var(--accent2)';
   });
   const totalEl=document.getElementById('balCalcTotal');
   if(totalEl)totalEl.textContent=total===0?'—':fmtM(Math.round(total*100)/100);
