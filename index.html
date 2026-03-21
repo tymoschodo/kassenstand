@@ -753,6 +753,12 @@ function getMonths(){
   });
 }
 
+function getYears(){
+  const startYear=TODAY.getFullYear()+1;
+  const count=S._timelineYears||0;
+  return Array.from({length:count},(_,i)=>startYear+i);
+}
+
 function genEvents(extraEvents=[]){
   const evs=[];
   getMonths().forEach(({year,month})=>{
@@ -1238,6 +1244,9 @@ function render(){
     </div>`;
   });
 
+
+
+  // ── Liquidity at end of 12-month window (snapshot before yearly projection) ──
   document.getElementById('hEnd').textContent=fmtM(cash+sav);
 
   // ── Global buffer violation baner ──
@@ -2347,6 +2356,7 @@ function delGoal(id){S.goals=S.goals.filter(g=>g.id!==id);persist();render();}
 
 function _bufferCheck(eventDateIso, amount, kind){
   // Returns a warning string if adding this event would violate the buffer rule, else null
+  if(amount>0) return null; // income never violates buffer
   const mode=S.bufferMode||'c';
   if(mode==='a') return null; // mode A handled by global baner, not per-event alert
   const extra=[{date:eventDateIso,amount,kind,name:''}];
