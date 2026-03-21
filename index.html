@@ -1598,26 +1598,40 @@ function buildWizSteps(){return [
     onNext:()=>{},
   },
 
-  // ─── STEP 2 — Balance ───
+  // ─── STEP 2 — Balance (with inline ∑ calculator) ───
   {
     title:t('wiz1Title'),
     sub:t('wiz1Sub'),
     render:()=>`
-      <div class="wiz-input-row"><label>${t('wiz1Cash')}</label>
-        <input class="wiz-inp" id="wizCash" type="number" step="0.01" placeholder="1500" value="${S._startingCash||''}"/>
+      <div style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted);margin-bottom:.6rem">${t('wiz1CalcHint')||'Enter each account separately — amounts are summed and converted to your base currency.'}</div>
+
+      <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">🏦 ${t('wiz1Cash')}</div>
+      <div id="wizCashRows"></div>
+      <button class="btn btn-g" style="width:100%;margin-bottom:.7rem;font-size:.68rem" onclick="wizCalcAddRow('cash')">${t('calcAddAccount')||'+ Add account'}</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem .6rem;background:#111;border-radius:5px;margin-bottom:.9rem">
+        <span style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted)">${t('calcTotal')||'Total'} ${t('wiz1Cash')}</span>
+        <span style="font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--accent)" id="wizCashTotal">—</span>
       </div>
-      <div class="wiz-input-row"><label>${t('wiz1Sav')}</label>
-        <input class="wiz-inp sav" id="wizSav" type="number" step="0.01" placeholder="3500" value="${S.savingsBalance||''}"/>
-        <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:.3rem">${t('wiz1SavHint')}</div>
-      </div>
-      <div style="font-family:'DM Mono',monospace;font-size:.62rem;color:var(--muted);margin-top:.6rem;line-height:1.6;padding:.45rem .55rem;background:#111;border-radius:4px">
-        ${t('wiz1Hint')}
+
+      <div style="font-family:'DM Mono',monospace;font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.35rem">🛡 ${t('wiz1Sav')} <span style="color:var(--border)">(${t('financialSecurity')||'Financial Security'})</span></div>
+      <div id="wizSavRows"></div>
+      <button class="btn btn-g" style="width:100%;margin-bottom:.7rem;font-size:.68rem" onclick="wizCalcAddRow('sav')">${t('calcAddAccount')||'+ Add account'}</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem .6rem;background:#111;border-radius:5px">
+        <span style="font-family:'DM Mono',monospace;font-size:.65rem;color:var(--muted)">${t('calcTotal')||'Total'} ${t('wiz1Sav')}</span>
+        <span style="font-family:'DM Serif Display',serif;font-size:1.2rem;color:var(--accent2)" id="wizSavTotal">—</span>
       </div>`,
+    onRender:()=>{
+      // Init rows if empty
+      if(!window._wizCashRows)window._wizCashRows=[{amt:'',cur:S.currency}];
+      if(!window._wizSavRows)window._wizSavRows=[{amt:'',cur:S.currency}];
+      wizCalcRenderRows('cash');
+      wizCalcRenderRows('sav');
+    },
     onNext:()=>{
-      const c=parseFloat(document.getElementById('wizCash')?.value);
-      const sv=parseFloat(document.getElementById('wizSav')?.value);
-      if(!isNaN(c)){S._startingCash=c;S.cashBalance=c;S._startingDate=isoOf(TODAY);}
-      if(!isNaN(sv))S.savingsBalance=sv;
+      const cash=wizCalcTotal('cash');
+      const sav=wizCalcTotal('sav');
+      if(cash>0){S._startingCash=cash;S.cashBalance=cash;S._startingDate=isoOf(TODAY);}
+      if(sav>=0)S.savingsBalance=sav;
     },
   },
   // ─── STEP 2 ───
@@ -1726,6 +1740,60 @@ function buildWizSteps(){return [
 ];}
 
 // ─── WIZARD HELPERS ───
+
+function wizCalcRenderRows(type){
+  const id=type==='cash'?'wizCashRows':'wizSavRows';
+  const rows=type==='cash'?(window._wizCashRows||[]):(window._wizSavRows||[]);
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.innerHTML=rows.map((r,i)=>`
+    <div style="display:grid;grid-template-columns:1fr 80px 24px;gap:.35rem;align-items:center;margin-bottom:.35rem">
+      <input class="wiz-inp" type="number" step="0.01" placeholder="0.00" value="${r.amt||''}"
+        oninput="wizCalcSetAmt('${type}',${i},this.value)"
+        style="font-size:.9rem;text-align:right"/>
+      <select class="wiz-inp" style="font-size:.78rem;padding:.3rem .3rem"
+        onchange="wizCalcSetCur('${type}',${i},this.value)">
+        ${['EUR','CHF','USD','GBP','PLN'].map(c=>`<option value="${c}" ${c===r.cur?'selected':''}>${c}</option>`).join('')}
+      </select>
+      ${i>0?`<button class="xbtn" onclick="wizCalcRemoveRow('${type}',${i})">✕</button>`:'<div></div>'}
+    </div>
+    ${r.amt&&r.cur!==S.currency?`<div style="font-family:'DM Mono',monospace;font-size:.58rem;color:var(--muted);margin-bottom:.2rem;text-align:right">≈ ${fmtM(convertToBase(parseFloat(r.amt)||0,r.cur))}</div>`:''}
+  `).join('');
+  wizCalcUpdateTotal(type);
+}
+function wizCalcSetAmt(type,i,v){
+  const rows=type==='cash'?window._wizCashRows:window._wizSavRows;
+  if(rows[i])rows[i].amt=v;
+  wizCalcRenderRows(type);
+}
+function wizCalcSetCur(type,i,c){
+  const rows=type==='cash'?window._wizCashRows:window._wizSavRows;
+  if(rows[i])rows[i].cur=c;
+  wizCalcRenderRows(type);
+}
+function wizCalcAddRow(type){
+  const rows=type==='cash'?window._wizCashRows:window._wizSavRows;
+  rows.push({amt:'',cur:S.currency});
+  wizCalcRenderRows(type);
+}
+function wizCalcRemoveRow(type,i){
+  if(type==='cash')window._wizCashRows.splice(i,1);
+  else window._wizSavRows.splice(i,1);
+  wizCalcRenderRows(type);
+}
+function wizCalcTotal(type){
+  const rows=type==='cash'?(window._wizCashRows||[]):(window._wizSavRows||[]);
+  return rows.reduce((s,r)=>{
+    const a=parseFloat(r.amt)||0;
+    if(!a)return s;
+    return s+(r.cur===S.currency?a:convertToBase(a,r.cur));
+  },0);
+}
+function wizCalcUpdateTotal(type){
+  const total=wizCalcTotal(type);
+  const el=document.getElementById(type==='cash'?'wizCashTotal':'wizSavTotal');
+  if(el)el.textContent=total>0?fmtM(Math.round(total*100)/100):'—';
+}
 
 function wizIncomeRow(it,i){
   return `<div class="wiz-dyn-row" id="wizInc${i}" style="display:grid;grid-template-columns:1fr 60px 90px 28px;gap:.4rem;margin-bottom:.4rem;align-items:end">
@@ -1932,6 +2000,7 @@ function renderWizStep(){
   document.getElementById('wizTitle').textContent=step.title;
   document.getElementById('wizSub').textContent=step.sub;
   document.getElementById('wizBody').innerHTML=step.render();
+  if(step.onRender)step.onRender();
   document.getElementById('wizBack').style.display=_wizStep>0?'':'none';
   const isLast=_wizStep===total-1;
   document.getElementById('wizNext').style.display=isLast?'none':'';
