@@ -1278,8 +1278,16 @@ function render(){
   applyI18n();
 
   let html='';
-  let cash=autoCash,sav=autoSav;
-  let _redLineCrossed=autoCash<0; // already in the red from start
+  let _redLineCrossed=autoCash<0;
+
+  // Pre-compute starting cash by subtracting all past events from autoCash.
+  // This reconstructs what cash was BEFORE any past events this cycle.
+  // Then we replay all events forwards — past and future — to get coherent running balances.
+  // Example: autoCash=1000, past event -800 → reconstructed start=1800, after event=1000 ✓
+  const pastCashEvs=evs.filter(ev=>ev.date<TODAY&&ev.kind!=='saving');
+  const pastCashSum=pastCashEvs.reduce((s,ev)=>s+ev.amount,0);
+  let cash=Math.round((autoCash-pastCashSum)*100)/100;
+  let sav=autoSav;
 
   getMonths().forEach(({year,month},mi)=>{
     const mk=`${year}-${month}`;
@@ -1293,14 +1301,9 @@ function render(){
 
     let rows='';
     mEvs.forEach(ev=>{
-      // Only apply events that are >= _startingDate to running cash.
-      // Events before _startingDate are already baked into autoCash (the Update balance).
-      // They appear as past rows for context but must NOT change the running total.
-      const startDate=S._startingDate?parseDt(S._startingDate):TODAY;
-      const isBeforeStart=ev.date<startDate;
-      if(!isBeforeStart){
-        if(ev.kind==='saving'){cash+=ev.amount;sav+=Math.abs(ev.amount);}else cash+=ev.amount;
-      }
+      // Apply every event — past and future — to running balance.
+      // Past balances are coherent because we reconstructed the start from autoCash.
+      if(ev.kind==='saving'){cash+=ev.amount;sav+=Math.abs(ev.amount);}else cash+=ev.amount;
       const isPast=ev.date<TODAY;
       const isTod=isoOf(ev.date)===isoOf(TODAY);
       const isSav=ev.kind==='saving';
