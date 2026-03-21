@@ -298,10 +298,9 @@
       </div>
       <div class="fhint" id="lblEvtHint">Positive = income · Negative = expense</div>
       <button class="btn btn-a" style="width:100%;margin-top:.3rem" id="btnAddEvent" onclick="addOneTime()">Add Event</button>
-      <div class="sb-h4" style="margin-top:1rem" id="lblRecTitle">Monthly recurring</div>
+      <div class="sb-h4" style="margin-top:1rem" id="lblRecTitle">Recurring event</div>
       <div class="fr"><label id="lblRecName">Name</label><input class="fi" id="rN" placeholder="e.g. Rent"/></div>
       <div class="firow">
-        <div class="fr"><label id="lblRecDay">Day of month</label><input class="fi" id="rD" type="number" min="1" max="31" placeholder="28"/></div>
         <div class="fr" style="flex:2"><label id="lblRecAmt">Amount</label><input class="fi" id="rA" type="number" step="0.01" placeholder="-1200"/></div>
         <div class="fr"><label id="lblRecCur">Currency</label>
           <select class="fi" id="rCur" style="padding:.3rem .2rem">
@@ -310,6 +309,20 @@
           </select>
         </div>
       </div>
+      <div class="fr"><label id="lblRecFreq">Frequency</label>
+        <select class="fi" id="rFreq" onchange="toggleRecFreqFields('r')">
+          <option value="monthly">Monthly</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Every 2 weeks</option>
+          <option value="custom">Custom (every N days)</option>
+        </select>
+      </div>
+      <div id="recFreqMonthly" class="fr"><label id="lblRecDay">Day of month</label><input class="fi" id="rD" type="number" min="1" max="31" placeholder="28"/></div>
+      <div id="recFreqOther" style="display:none">
+        <div class="fr"><label id="lblRecStart">Start date</label><input class="fi" id="rStart" type="date"/></div>
+        <div id="recFreqCustomDays" style="display:none" class="fr"><label id="lblRecInterval">Every N days</label><input class="fi" id="rInterval" type="number" min="1" placeholder="10"/></div>
+      </div>
+      <div class="fr"><label id="lblRecEnd">Until (optional)</label><input class="fi" id="rEnd" type="date"/></div>
       <button class="btn btn-a" style="width:100%" id="btnAddRec" onclick="addRec('cash')">Add Recurring</button>
       <div class="sb-h4" style="margin-top:1rem" id="lblRecListTitle">Recurring events</div>
       <div id="recCash"></div>
@@ -337,10 +350,9 @@
         </select>
       </div>
       <button class="btn btn-b" style="width:100%;margin-top:.3rem" id="btnAddSavOne" onclick="addSavingOne()">Add Transfer</button>
-      <div class="sb-h4" style="margin-top:1rem" id="lblSrTitle">Monthly recurring saving</div>
+      <div class="sb-h4" style="margin-top:1rem" id="lblSrTitle">Recurring saving</div>
       <div class="fr"><label id="lblSrName">Name</label><input class="fi sav" id="srN" placeholder="e.g. Monthly saving"/></div>
       <div class="firow">
-        <div class="fr"><label id="lblSrDay">Day of month</label><input class="fi sav" id="srD" type="number" min="1" max="31" placeholder="1"/></div>
         <div class="fr" style="flex:2"><label id="lblSrAmt">Amount</label><input class="fi sav" id="srA" type="number" step="0.01" placeholder="300"/></div>
         <div class="fr"><label id="lblSrCur">Currency</label>
           <select class="fi sav" id="srCur" style="padding:.3rem .2rem">
@@ -349,6 +361,20 @@
           </select>
         </div>
       </div>
+      <div class="fr"><label id="lblSrFreq">Frequency</label>
+        <select class="fi sav" id="srFreq" onchange="toggleRecFreqFields('sr')">
+          <option value="monthly">Monthly</option>
+          <option value="weekly">Weekly</option>
+          <option value="biweekly">Every 2 weeks</option>
+          <option value="custom">Custom (every N days)</option>
+        </select>
+      </div>
+      <div id="savFreqMonthly" class="fr"><label id="lblSrDay">Day of month</label><input class="fi sav" id="srD" type="number" min="1" max="31" placeholder="1"/></div>
+      <div id="savFreqOther" style="display:none">
+        <div class="fr"><label id="lblSrStart">Start date</label><input class="fi sav" id="srStart" type="date"/></div>
+        <div id="savFreqCustomDays" style="display:none" class="fr"><label id="lblSrInterval">Every N days</label><input class="fi sav" id="srInterval" type="number" min="1" placeholder="10"/></div>
+      </div>
+      <div class="fr"><label id="lblSrEnd">Until (optional)</label><input class="fi sav" id="srEnd" type="date"/></div>
       <div class="fr">
         <label id="lblSrGoal">Allocate to</label>
         <select class="fi sav" id="srGoal">
@@ -577,7 +603,7 @@ function loadData(){
     if(raw){
       const d=JSON.parse(raw);
       S=d;
-      S.recurring.forEach(r=>{if(!r.kind)r.kind='cash';});
+      S.recurring.forEach(r=>{if(!r.kind)r.kind='cash';if(!r.freq)r.freq='monthly';});
       S.oneTime.forEach(e=>{if(!e.kind)e.kind='cash';});
       if(!S.goals)S.goals=[];
       if(S.savingsBalance===undefined)S.savingsBalance=0;
@@ -680,6 +706,44 @@ function confirmRealizeGoal(){
       [{label:t('removeGoal')||'Remove goal',cls:'btn-b',fn:()=>{delGoal(goalId);closeModal();}},
        {label:t('keepGoal')||'Keep it',cls:'btn-g',fn:closeModal}]);
   },300);
+}
+
+function toggleRecEdit(id){
+  const el=document.getElementById('recEdit_'+id);
+  if(el)el.style.display=el.style.display==='none'?'block':'none';
+}
+
+function updRecField(id,field,val){
+  const r=S.recurring.find(x=>x.id===id);
+  if(!r)return;
+  if(field==='amount'){
+    // Keep sign logic consistent
+    r.amount=Math.round(val*10)/10;
+    if(r.amountOriginal!==undefined)r.amountOriginal=Math.abs(val);
+    if(r.amountOriginal_sign!==undefined)r.amountOriginal_sign=val>=0?1:-1;
+  } else if(field==='day'){
+    r.day=Math.max(1,Math.min(31,val||1));
+  } else {
+    r[field]=val;
+  }
+  persist();render();
+}
+
+function addEndDateToRec(id){
+  const r=S.recurring.find(x=>x.id===id);
+  if(!r)return;
+  if(r.endDate){
+    // Toggle off
+    delete r.endDate;
+    persist();renderRecLists();return;
+  }
+  // Set end date to 1 year from now by default
+  const d=new Date(TODAY);d.setFullYear(d.getFullYear()+1);
+  r.endDate=isoOf(d);
+  persist();renderRecLists();
+  // Expand the edit panel so user can change it
+  const el=document.getElementById('recEdit_'+id);
+  if(el)el.style.display='block';
 }
 
 function allocateToGoal(goalId, amount){
@@ -825,23 +889,40 @@ function getYears(){
 
 function genEvents(extraEvents=[]){
   const evs=[];
-  getMonths().forEach(({year,month})=>{
-    S.recurring.forEach(rec=>{
-      const last=new Date(year,month+1,0).getDate();
-      const day=Math.min(rec.day,last);
-      const date=new Date(year,month,day);
-      // amount is already in base currency (converted on entry or on FX refresh)
-      const amt=rec.kind==='saving'?-Math.abs(rec.amount):rec.amount;
+  const winStart=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);
+  const winEnd12=new Date(TODAY.getFullYear(),TODAY.getMonth()+12,0);
+  S.recurring.forEach(rec=>{
+    const freq=rec.freq||'monthly';
+    const amt=rec.kind==='saving'?-Math.abs(rec.amount):rec.amount;
+    const recEnd=rec.endDate?parseDt(rec.endDate):null;
+    const effectiveEnd=recEnd&&recEnd<winEnd12?recEnd:winEnd12;
+    const pushEv=(date)=>{
+      if(date<winStart||date>effectiveEnd)return;
       const excKey=isoOf(date);
       if((S.recurringExceptions[rec.id]||[]).includes(excKey))return;
-      evs.push({id:`${rec.id}_${year}_${month}`,date,name:rec.name,amount:amt,kind:rec.kind,type:'recurring',recurringId:rec.id,instanceDate:excKey,monthKey:`${year}-${month}`,currency:rec.currency||S.currency,amountOriginal:rec.amountOriginal,amountOriginal_sign:rec.amountOriginal_sign});
-    });
+      const mk=`${date.getFullYear()}-${date.getMonth()}`;
+      evs.push({id:`${rec.id}_${excKey}`,date,name:rec.name,amount:amt,kind:rec.kind,
+        type:'recurring',recurringId:rec.id,instanceDate:excKey,monthKey:mk,
+        currency:rec.currency||S.currency,amountOriginal:rec.amountOriginal,
+        amountOriginal_sign:rec.amountOriginal_sign});
+    };
+    if(freq==='monthly'){
+      getMonths().forEach(({year,month})=>{
+        const last=new Date(year,month+1,0).getDate();
+        pushEv(new Date(year,month,Math.min(rec.day||1,last)));
+      });
+    } else {
+      const interval=freq==='weekly'?7:freq==='biweekly'?14:(rec.interval||7);
+      const start=rec.startDate?parseDt(rec.startDate):new Date(TODAY.getFullYear(),TODAY.getMonth(),rec.day||1);
+      let cur=new Date(start);
+      while(cur>winStart)cur=new Date(cur.getTime()-interval*86400000);
+      cur=new Date(cur.getTime()+interval*86400000);
+      while(cur<=effectiveEnd){pushEv(new Date(cur));cur=new Date(cur.getTime()+interval*86400000);}
+    }
   });
-  const winStart=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);
-  const winEnd=new Date(TODAY.getFullYear(),TODAY.getMonth()+12,0);
   S.oneTime.forEach(ev=>{
     const date=parseDt(ev.date);
-    if(date<winStart||date>winEnd)return;
+    if(date<winStart||date>winEnd12)return;
     const amt=ev.kind==='saving'?-Math.abs(ev.amount):ev.amount;
     evs.push({id:ev.id,date,name:ev.name,amount:amt,kind:ev.kind,type:'oneTime',monthKey:`${date.getFullYear()}-${date.getMonth()}`,currency:ev.currency||S.currency,amountOriginal:ev.amountOriginal,amountOriginal_sign:ev.amountOriginal_sign});
   });
@@ -1252,7 +1333,15 @@ function render(){
       rows+=`
         <div class="txr${isPast?' past':''}${isTod?' tod':''}${isSav?' svr':''}${isCritical&&!isPast?' txr-crit':''}">
           <div class="txdate">
-            <div>${fmtS(ev.date)} <span style="color:#3a3a3a">${ev.date.toLocaleDateString('en',{weekday:'short'})}</span></div>
+            ${isPast
+              ? `<div>${fmtS(ev.date)} <span style="color:#3a3a3a">${ev.date.toLocaleDateString('en',{weekday:'short'})}</span></div>`
+              : `<input type="date" class="txdate-inp"
+                  value="${isoOf(ev.date)}"
+                  onchange="updDate('${ev.id}','${ev.type}','${ev.recurringId||''}',this.value,'${ev.instanceDate||''}')"
+                  style="font-family:'DM Mono',monospace;font-size:.63rem;color:var(--muted);background:transparent;border:none;border-bottom:1px solid transparent;padding:.05rem .1rem;width:88px;cursor:pointer;"
+                  onfocus="this.style.borderBottomColor='var(--accent)'"
+                  onblur="this.style.borderBottomColor='transparent'"/>`
+            }
             ${isTod?`<div class="todaybadge">${t('today')}</div>`:''}
           </div>
           ${isCritical
@@ -1395,11 +1484,41 @@ function renderRecLists(){
   const cr=S.recurring.filter(r=>r.kind==='cash').sort((a,b)=>a.day-b.day);
   const sr=S.recurring.filter(r=>r.kind==='saving').sort((a,b)=>a.day-b.day);
   const mk=arr=>arr.length?arr.map(r=>`
-    <div class="ritem">
-      <div class="rday">${r.day}</div>
-      <div class="rname" title="${escH(r.name)}">${escH(r.name)}${r.currency&&r.currency!==S.currency?` <span style="font-size:.55rem;color:var(--muted);font-family:'DM Mono',monospace">${r.currency}</span>`:''}</div>
-      <div class="ramt ${r.kind==='saving'?'pos':r.amount>0?'pos':'neg'}">${r.amount!==0?fmtSign(r.kind==='saving'?Math.abs(r.amount):r.amount):'—'}</div>
-      <button class="xbtn" style="margin-left:4px" onclick="delRec('${r.id}')">✕</button>
+    <div class="ritem" style="flex-direction:column;align-items:stretch;gap:0">
+      <div style="display:flex;align-items:center;gap:.4rem;cursor:pointer" onclick="toggleRecEdit('${r.id}')">
+        <div class="rday" style="font-size:.6rem;min-width:22px;text-align:center">${r.freq==='weekly'?'1w':r.freq==='biweekly'?'2w':r.freq==='custom'?(r.interval+'d'):(r.day||'?')}</div>
+        <div class="rname" title="${escH(r.name)}">${escH(r.name)}${r.currency&&r.currency!==S.currency?` <span style="font-size:.55rem;color:var(--muted);font-family:'DM Mono',monospace">${r.currency}</span>`:''}</div>
+        <div class="ramt ${r.kind==='saving'?'pos':r.amount>0?'pos':'neg'}">${r.amount!==0?fmtSign(r.kind==='saving'?Math.abs(r.amount):r.amount):'—'}</div>
+        <span style="font-size:.6rem;color:var(--muted);margin-left:auto">✎</span>
+        <button class="xbtn" style="margin-left:4px" onclick="event.stopPropagation();delRec('${r.id}')">✕</button>
+      </div>
+      <div id="recEdit_${r.id}" style="display:none;padding:.5rem .3rem .3rem;border-top:1px solid var(--border);margin-top:.3rem">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.35rem;margin-bottom:.35rem">
+          <div><label class="mono-label">Name</label>
+            <input class="fi" style="font-size:.75rem" value="${escH(r.name)}"
+              onchange="updRecField('${r.id}','name',this.value)"/></div>
+          <div><label class="mono-label">Amount</label>
+            <input class="fi" type="number" step="0.01" style="font-size:.75rem"
+              value="${r.amount}"
+              onchange="updRecField('${r.id}','amount',parseFloat(this.value))"/></div>
+        </div>
+        ${(r.freq||'monthly')==='monthly'
+          ?`<div><label class="mono-label">Day of month</label>
+            <input class="fi" type="number" min="1" max="31" style="font-size:.75rem;width:60px"
+              value="${r.day||1}"
+              onchange="updRecField('${r.id}','day',parseInt(this.value))"/></div>`
+          :`<div><label class="mono-label">Start date</label>
+            <input class="fi" type="date" style="font-size:.75rem"
+              value="${r.startDate||''}"
+              onchange="updRecField('${r.id}','startDate',this.value)"/></div>`
+        }
+        ${r.endDate!==undefined?`<div style="margin-top:.3rem"><label class="mono-label">Until</label>
+          <input class="fi" type="date" style="font-size:.75rem"
+            value="${r.endDate||''}"
+            onchange="updRecField('${r.id}','endDate',this.value||null)"/></div>`:''}
+        <button class="btn btn-g" style="width:100%;font-size:.65rem;margin-top:.35rem"
+          onclick="addEndDateToRec('${r.id}')">${r.endDate?'✓ Until set':'+ Set end date'}</button>
+      </div>
     </div>`).join(''):`<div style="color:var(--muted);font-size:.72rem;font-style:italic;padding:.35rem 0">${t('noneRecurring')}</div>`;
   document.getElementById('recCash').innerHTML=mk(cr);
   document.getElementById('recSav').innerHTML=mk(sr);
@@ -2484,11 +2603,57 @@ function setBal(w){
   checkBadges();
 }
 
+function toggleRecFreqFields(px){
+  px=px||'r';
+  const freq=document.getElementById(px+'Freq')?.value||'monthly';
+  const monthEl=document.getElementById(px==='r'?'recFreqMonthly':'savFreqMonthly');
+  const otherEl=document.getElementById(px==='r'?'recFreqOther':'savFreqOther');
+  const customEl=document.getElementById(px==='r'?'recFreqCustomDays':'savFreqCustomDays');
+  if(monthEl)monthEl.style.display=freq==='monthly'?'':'none';
+  if(otherEl)otherEl.style.display=freq==='monthly'?'none':'';
+  if(customEl)customEl.style.display=freq==='custom'?'':'none';
+}
+
 function setBufMode(m){
   if(S.bufferMode!==m){S.bufferMode=m;S.bufferModeSince=isoOf(TODAY);}
   persist();render();updateBufUI();
 }
 function saveName(){const v=document.getElementById('settName').value.trim();if(v)S.userName=v;persist();}
+
+function updDate(id,type,rid,newDate,instanceDate){
+  if(!newDate)return;
+  if(type==='recurring'){
+    const r=S.recurring.find(x=>x.id===rid);
+    if(!r)return;
+    showModal(
+      t('editTitle')||'Edit date',
+      `<div style="font-size:.82rem;margin-bottom:.3rem">"${r?escH(r.name):''}"<br>${t('newDate')||'New date'}: <b>${newDate}</b></div>`,
+      [
+        {label:t('editThis')||'Only this occurrence',cls:'btn-a',fn:()=>{
+          // Create exception for old date, add one-time with new date
+          if(!S.recurringExceptions[rid])S.recurringExceptions[rid]=[];
+          if(instanceDate&&!S.recurringExceptions[rid].includes(instanceDate))
+            S.recurringExceptions[rid].push(instanceDate);
+          S.oneTime.push({id:'ot_'+Date.now(),name:r.name,date:newDate,
+            amount:r.amount,kind:r.kind,currency:r.currency||S.currency,
+            amountOriginal:r.amountOriginal,amountOriginal_sign:r.amountOriginal_sign});
+          persist();render();closeModal();
+        }},
+        {label:t('editAll')||'Change day for all',cls:'btn-g',fn:()=>{
+          // Change the day-of-month for monthly, or startDate for others
+          const d=new Date(newDate+'T00:00:00');
+          if((r.freq||'monthly')==='monthly'){r.day=d.getDate();}
+          else{r.startDate=newDate;}
+          persist();render();closeModal();
+        }},
+        {label:t('cancel')||'Cancel',cls:'btn-g',fn:closeModal},
+      ]
+    );
+  } else {
+    const e=S.oneTime.find(x=>x.id===id);
+    if(e){e.date=newDate;persist();render();}
+  }
+}
 
 function updAmtFx(id,type,rid,absVal,instanceDate,currency,sign){
   // Edit amount in original foreign currency — reconvert to base
@@ -2712,19 +2877,44 @@ function addSavingOne(){
 }
 function addRec(kind){
   const iS=kind==='saving';
-  const n=document.getElementById(iS?'srN':'rN').value.trim(),d=parseInt(document.getElementById(iS?'srD':'rD').value),a=parseFloat(document.getElementById(iS?'srA':'rA').value);
-  const cur=document.getElementById(iS?'srCur':'rCur')?.value||S.currency;
-  if(!n||isNaN(d)||d<1||d>31||isNaN(a)){alert(t('dayRange'));return;}
-  const now=new Date(TODAY);let firstDate=null;
-  for(let i=0;i<60;i++){const tt=new Date(now);tt.setDate(tt.getDate()+i);if(tt.getDate()===d){firstDate=isoOf(tt);break;}}
+  const px=iS?'sr':'r';
+  const n=document.getElementById(px+'N').value.trim();
+  const a=parseFloat(document.getElementById(px+'A').value);
+  const cur=document.getElementById(px+'Cur')?.value||S.currency;
+  const freq=document.getElementById(px+'Freq')?.value||'monthly';
+  const endDateVal=document.getElementById(px+'End')?.value||null;
+  if(!n||isNaN(a)){alert(t('fillAll')||'Fill in all fields.');return;}
   const rawAmt=kind==='saving'?Math.abs(a):a;
   const amtBase=cur!==S.currency?convertToBase(rawAmt,cur):rawAmt;
   const rounded=Math.round(amtBase*10)/10;
-  const rec={id:'rc_'+Date.now(),name:n,day:d,amount:rounded,kind,
+  const rec={id:'rc_'+Date.now(),name:n,amount:rounded,kind,freq,
     currency:cur,amountOriginal:Math.abs(a),amountOriginal_sign:a>=0?1:-1};
-  const doIt=()=>{S.recurring.push(rec);document.getElementById(iS?'srN':'rN').value='';document.getElementById(iS?'srD':'rD').value='';document.getElementById(iS?'srA':'rA').value='';persist();render();checkBadges();};
+  if(endDateVal)rec.endDate=endDateVal;
+  let firstDate=isoOf(TODAY);
+  if(freq==='monthly'){
+    const d=parseInt(document.getElementById(px+'D')?.value);
+    if(isNaN(d)||d<1||d>31){alert(t('dayRange'));return;}
+    rec.day=d;
+    const now=new Date(TODAY);
+    for(let i=0;i<62;i++){const tt=new Date(now);tt.setDate(tt.getDate()+i);if(tt.getDate()===d){firstDate=isoOf(tt);break;}}
+  } else {
+    const startVal=document.getElementById(px+'Start')?.value||isoOf(TODAY);
+    rec.startDate=startVal;firstDate=startVal;
+    if(freq==='custom'){
+      const interval=parseInt(document.getElementById(px+'Interval')?.value);
+      if(isNaN(interval)||interval<1){alert('Enter a valid interval.');return;}
+      rec.interval=interval;
+    }
+  }
   const checkAmt=iS?-Math.abs(rounded):rounded;
-  if(firstDate)_doAdd(doIt,firstDate,checkAmt,kind);else doIt();
+  const doIt=()=>{
+    S.recurring.push(rec);
+    [px+'N',px+'A',px+'D',px+'Start',px+'End',px+'Interval'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+    const fEl=document.getElementById(px+'Freq');if(fEl)fEl.value='monthly';
+    toggleRecFreqFields(px);
+    persist();render();checkBadges();
+  };
+  _doAdd(doIt,firstDate,checkAmt,kind);
 }
 function addGoal(){
   const n=document.getElementById('gN').value.trim(),t=parseFloat(document.getElementById('gT').value);
@@ -2745,22 +2935,37 @@ let _chartInstance=null;
 let _chartYears=1;
 
 function genEventsExtended(months){
-  // Like genEvents but extends N months forward (not capped at 12)
   const evs=[];
-  const now=new Date(TODAY);
-  for(let m=0;m<months;m++){
-    const yr=new Date(now.getFullYear(),now.getMonth()+m,1);
-    const year=yr.getFullYear(),month=yr.getMonth();
-    S.recurring.forEach(rec=>{
-      const last=new Date(year,month+1,0).getDate();
-      const day=Math.min(rec.day,last);
-      const date=new Date(year,month,day);
-      const excKey=isoOf(date);
-      if((S.recurringExceptions[rec.id]||[]).includes(excKey))return;
-      const amt=rec.kind==='saving'?-Math.abs(rec.amount):rec.amount;
-      evs.push({date,amount:amt,kind:rec.kind,monthKey:`${year}-${month}`});
-    });
-  }
+  const extStart=new Date(TODAY.getFullYear(),TODAY.getMonth(),1);
+  const extEnd=new Date(TODAY.getFullYear(),TODAY.getMonth()+months,0);
+  S.recurring.forEach(rec=>{
+    const freq=rec.freq||'monthly';
+    const amt=rec.kind==='saving'?-Math.abs(rec.amount):rec.amount;
+    const recEnd=rec.endDate?parseDt(rec.endDate):null;
+    const effectiveEnd=recEnd&&recEnd<extEnd?recEnd:extEnd;
+    if(freq==='monthly'){
+      for(let m=0;m<months;m++){
+        const d=new Date(TODAY.getFullYear(),TODAY.getMonth()+m,1);
+        const last=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+        const date=new Date(d.getFullYear(),d.getMonth(),Math.min(rec.day||1,last));
+        const excKey=isoOf(date);
+        if(!(S.recurringExceptions[rec.id]||[]).includes(excKey))
+          evs.push({date,amount:amt,kind:rec.kind,monthKey:`${d.getFullYear()}-${d.getMonth()}`});
+      }
+    } else {
+      const interval=freq==='weekly'?7:freq==='biweekly'?14:(rec.interval||7);
+      const start=rec.startDate?parseDt(rec.startDate):new Date(TODAY.getFullYear(),TODAY.getMonth(),rec.day||1);
+      let cur=new Date(start);
+      while(cur>extStart)cur=new Date(cur.getTime()-interval*86400000);
+      cur=new Date(cur.getTime()+interval*86400000);
+      while(cur<=effectiveEnd){
+        const excKey=isoOf(cur);
+        if(!(S.recurringExceptions[rec.id]||[]).includes(excKey))
+          evs.push({date:new Date(cur),amount:amt,kind:rec.kind,monthKey:`${cur.getFullYear()}-${cur.getMonth()}`});
+        cur=new Date(cur.getTime()+interval*86400000);
+      }
+    }
+  });
   S.oneTime.forEach(ev=>{
     const date=parseDt(ev.date);
     const mk=`${date.getFullYear()}-${date.getMonth()}`;
